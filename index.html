@@ -236,6 +236,8 @@ main{padding:10px 12px 20px}
 .hoja.arriba{border-radius:0 0 14px 14px;padding-top:calc(14px + env(safe-area-inset-top,0px));
   padding-bottom:18px;max-height:none}
 .hoja h3{margin:0 0 3px;font-size:23px;font-weight:650}
+.hoja .hsec{margin:14px 0 2px;font-size:13.5px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--tx3);border-top:1px solid var(--linea2);padding-top:10px}
 .hoja .hsub{color:var(--tx3);font-size:16px;margin-bottom:12px}
 .hoja p{margin:0 0 11px;font-size:18px;color:var(--tx2)}
 .hoja code{background:var(--card2);border:1px solid var(--linea2);border-radius:5px;
@@ -683,6 +685,17 @@ function rubrosDe(S,k){
   });
   return out;
 }
+/* Los rubros con importe asignado en esa ventana, que son exactamente los que
+   suma totPresuC. Sirve para cotejar renglón por renglón con la app madre. */
+function presuRubros(S,k){
+  var p=presuDe(S,k), out=[];
+  Object.keys(p).forEach(function(c){
+    if(p[c]==null || p[c]==="") return;
+    out.push({cat:c, presC:cts(p[c]), gastoC:gastoCatC(S,k,c)});
+  });
+  out.sort(function(a,b){ return b.presC-a.presC; });
+  return out;
+}
 function gastoTarjetaC(S,k,nombre){ var c=0;
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && m.pago===nombre) c+=cts(m.monto); }); return c; }
 
@@ -728,21 +741,67 @@ function dispEstC(S,k,tj){
   if(!(lim>0)) return {hay:false, c:0};
   return {hay:true, c:lim-gastoTarjetaC(S,k,tj.nombre)};
 }
-/* PRESUPUESTO DE UNA TARJETA.
-   En el estado no existe un presupuesto por tarjeta: el presupuesto es por
-   rubro. El único vínculo entre rubro y tarjeta es tjPref, que marcaste vos a
-   mano en la app madre. Esto es la suma del presupuesto de los rubros que le
-   asignaste a esta tarjeta — ni más ni menos, y se puede ver cuáles son. */
-function presuTarjeta(S,k,nombre){
-  var p=presuDe(S,k), pref=(S.tjPref||{}), c=0, rub=[];
-  Object.keys(pref).forEach(function(r){
-    if(clave(pref[r])!==clave(nombre)) return;
-    var v=p[r], m=(v==null||v==="")? 0 : cts(v);
-    rub.push({cat:r, presC:m, gastoC:gastoCatC(S,k,r)});
-    c+=m;
+/* =============================================================================
+   LO QUE CARGA UNA TARJETA EN ESTA VENTANA
+   -----------------------------------------------------------------------------
+   Dos fuentes, y cada peso entra UNA sola vez:
+     · los movimientos registrados con esa forma de pago, y
+     · los permanentes de esta ventana que se pagan con ella y que TODAVÍA no
+       tienen movimiento.
+   El permanente ya marcado NO se suma aparte: su movimiento ya está en la
+   primera suma. Sumar las dos cosas es exactamente el error que hundió a la
+   app anterior — contar el mismo dinero dos veces.
+
+   Las reglas de si un permanente toca este período son las mismas de la app
+   madre (mensual siempre toca; uno trimestral toca cuando su próximo cobro,
+   contado desde el último pago REGISTRADO, ya llegó).
+============================================================================= */
+function cadaDe(f){ var n=parseInt(f&&f.cada,10); return (n>=1&&n<=12)?n:1; }
+function mesDe(f){ return String(f||"").slice(0,7); }
+function mesMas(ym,n){
+  var p=String(ym||"").split("-"), a=parseInt(p[0],10), m=parseInt(p[1],10);
+  if(isNaN(a)||isNaN(m)) return "";
+  var t=a*12+(m-1)+(+n||0);
+  return Math.floor(t/12)+"-"+String((t%12)+1).padStart(2,"0");
+}
+function movDePerm(S,k,pid){
+  return movsDe(S,k).filter(function(m){ return m.permId===pid; })[0]||null;
+}
+function ultimoPagoPerm(S,pid){
+  var mej=null;
+  (S.movimientos||[]).forEach(function(m){
+    if(m.permId!==pid || !m.fecha) return;
+    if(!mej || String(m.fecha)>String(mej.fecha)) mej=m;
   });
-  rub.sort(function(a,b){ return b.presC-a.presC; });
-  return {c:c, rubros:rub, hay:rub.length>0};
+  return mej;
+}
+function permToca(S,f,hoyIso){
+  if(cadaDe(f)<=1) return true;
+  var mv=ultimoPagoPerm(S,f.id);
+  var base=mv? mesDe(mv.fecha) : (/^\d{4}-\d{2}$/.test(String(f.mesBase||""))? f.mesBase : "");
+  if(!base) return true;
+  var px=mesMas(base,cadaDe(f));
+  if(!px) return true;
+  return px <= mesDe(hoyIso);
+}
+/* Los permanentes de esta ventana que se pagan con esta tarjeta, con su estado. */
+function permsTarjeta(S,k,nombre,hoyIso){
+  var det=[], pend=0;
+  permsK(S,k).forEach(function(f){
+    if(!f || f.activo===false) return;
+    if((f.tipo||"Egreso")!=="Egreso") return;
+    if(!(cts(f.monto)>0)) return;
+    if(clave(f.pago||"")!==clave(nombre)) return;
+    if(!permToca(S,f,hoyIso)) return;
+    var reg=!!movDePerm(S,k,f.id);
+    det.push({desc:f.desc||f.cat||"permanente", cat:f.cat||"", c:cts(f.monto), reg:reg});
+    if(!reg) pend+=cts(f.monto);
+  });
+  return {det:det, pendC:pend};
+}
+function gastoTjTotal(S,k,nombre,hoyIso){
+  var mov=gastoTarjetaC(S,k,nombre), pt=permsTarjeta(S,k,nombre,hoyIso);
+  return {movC:mov, pendC:pt.pendC, c:mov+pt.pendC, det:pt.det};
 }
 /* LO QUE QUEDÓ DEBIENDO LA VENTANA ANTERIOR con esa tarjeta, y si marcaste ese
    corte como pagado. El monto sale de los movimientos; el estado, de tu marca.
@@ -869,8 +928,7 @@ var EX={
   singastar:["Sin gastar","<code>ingresos − gastos</code> de esta ventana, solo con movimientos registrados. Es la plata que todavía está.<br><br>No es lo mismo que sin presupuestar: acá entra todo lo que no se ha gastado, incluso lo que ya tiene rubro asignado."],
   sinpresu:["Sin presupuestar","<code>ingresos − suma del presupuesto</code> de esta ventana. Es la plata que todavía no tiene rubro asignado.<br><br>Puede ser negativo: significa que el presupuesto reparte más de lo que entró."],
   rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de esta ventana."],
-  gastotj:["Gasto real de la tarjeta","Suma de los movimientos de ESTA ventana cuya forma de pago es esta tarjeta. Solo movimientos: nada más entra."],
-  presutj:["Presupuestado de la tarjeta","No existe un presupuesto por tarjeta: el presupuesto es por rubro.<br><br>Esto suma el presupuesto de los rubros que vos le asignaste a esta tarjeta en la app madre. Tocá el número para ver cuáles son."],
+  gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en esta ventana:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los permanentes de esta ventana que se pagan con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
   anterior:["Corte anterior","Lo que gastaste con esta tarjeta en la ventana anterior, y si marcaste ese corte como pagado.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
   disp:["Disponible estimado","<code>límite − gasto real de esta ventana</code>.<br><br>Es una estimación de ESTA ventana. No es el saldo del banco: no incluye lo que se deba del corte anterior."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
@@ -1029,8 +1087,8 @@ function vTarjetas(){
   if(!tjs.length) return '<div class="caja"><div class="vacio">No hay tarjetas con corte anotado en la libreta de la app madre.</div></div>';
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
-    var pl=plazoDe(t,hoy()), real=gastoTarjetaC(S,k,t.nombre);
-    var pre=presuTarjeta(S,k,t.nombre), ant=deudaAnterior(S,k,t), de=dispEstC(S,k,t);
+    var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
+    var ant=deudaAnterior(S,k,t), de=dispEstC(S,k,t);
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
@@ -1040,17 +1098,15 @@ function vTarjetas(){
         '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
         (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>'+
       '<div class="tj-g">'+
-        '<div data-acc="ex" data-ex="gastotj"><span class="et">Gasto real</span>'+
-          '<span class="vl num'+nSig(real)+'">'+fmtC(real)+'</span></div>'+
-        '<div data-acc="tj-presu" data-v="'+esc(t.nombre)+'">'+
-          '<span class="et">Presupuestado</span>'+
-          (pre.hay? '<span class="vl num">'+fmtC(pre.c)+'</span>'+
-             '<span class="pie-est">'+pre.rubros.length+' rubro'+(pre.rubros.length===1?"":"s")+
-             ' asignado'+(pre.rubros.length===1?"":"s")+' &middot; '+
-             (pre.c-real>=0? "quedan "+fmtC(pre.c-real) : "se pasó "+fmtC(real-pre.c))+' &middot; ver cuáles</span>'
-           : '<span class="vl chico">sin rubros asignados a esta tarjeta</span>'+
-             '<span class="pie-est">se asignan en la app madre, en la libreta de tarjetas</span>')+
-        '</div>'+
+        '<div data-acc="tj-gasto" data-v="'+esc(t.nombre)+'"><span class="et">Gasto real</span>'+
+          '<span class="vl num'+nSig(g.c)+'">'+fmtC(g.c)+'</span>'+
+          '<span class="pie-est">'+
+            (g.pendC>0
+              ? fmtC(g.movC)+' registrados + '+fmtC(g.pendC)+' de '+g.det.filter(function(x){return !x.reg;}).length+
+                ' permanente'+(g.det.filter(function(x){return !x.reg;}).length===1?"":"s")+' sin marcar &middot; ver detalle'
+              : (g.det.length? 'todos sus permanentes ya están registrados &middot; ver detalle'
+                             : 'solo movimientos &middot; ver detalle'))+
+          '</span></div>'+
         (ant? '<div data-acc="ex" data-ex="anterior">'+
             '<span class="et">Corte anterior &middot; '+esc(nomVentana(ant.k))+'</span>'+
             '<span class="vl num">'+fmtC(ant.c)+'</span>'+
@@ -1070,17 +1126,27 @@ function vTarjetas(){
   });
   return h+'</div>';
 }
-function hojaPresuTj(nombre){
-  var k=kAct(), pre=presuTarjeta(S,k,nombre), real=gastoTarjetaC(S,k,nombre);
-  var h='<h3>'+esc(nombre)+'</h3><div class="hsub">Presupuestado '+fmtC(pre.c)+
-    ' &middot; gasto real con la tarjeta '+fmtC(real)+' &middot; '+esc(nomVentana(k))+'</div>'+
-    '<p class="sub">Son los rubros que le asignaste a esta tarjeta en la app madre. '+
-    'El gasto de cada rubro incluye lo pagado con cualquier forma de pago, no solo con esta tarjeta.</p>';
-  h+= pre.hay? pre.rubros.map(function(r){
-      return '<div class="mv"><span class="d">'+esc(r.cat)+
-        '<small>gastado '+fmtC(r.gastoC)+'</small></span>'+
-        '<span class="m num">'+fmtC(r.presC)+'</span></div>'; }).join("")
-    : '<div class="vacio">Ningún rubro está asignado a esta tarjeta.</div>';
+function hojaGastoTj(nombre){
+  var k=kAct(), g=gastoTjTotal(S,k,nombre,hoyISO());
+  var ms=movsDe(S,k).filter(function(m){ return !esIngreso(m) && m.pago===nombre; })
+    .sort(function(a,b){ return String(a.fecha||"").localeCompare(String(b.fecha||"")); });
+  var h='<h3>'+esc(nombre)+'</h3>'+
+    '<div class="hsub">'+esc(nomVentana(k))+' &middot; '+fmtC(g.c)+' en total</div>'+
+    '<p class="sub">'+fmtC(g.movC)+' en movimientos registrados'+
+      (g.pendC>0? ' y '+fmtC(g.pendC)+' en permanentes que todavía no tienen movimiento.' : '.')+
+      ' Un permanente ya marcado no se suma aparte: su movimiento ya está contado.</p>';
+  h+='<div class="hsec">Movimientos ('+ms.length+')</div>';
+  h+= ms.length? ms.map(function(m){
+      return '<div class="mv"><span class="f num">'+esc(fmtF(m.fecha))+'</span>'+
+        '<span class="d">'+esc(m.desc||"—")+'<small>'+esc(m.cat||"Sin categoría")+'</small></span>'+
+        '<span class="m num">'+fmtC(cts(m.monto))+'</span></div>'; }).join("")
+    : '<div class="vacio">Ninguno con esta tarjeta en esta ventana.</div>';
+  h+='<div class="hsec">Permanentes con esta tarjeta ('+g.det.length+')</div>';
+  h+= g.det.length? g.det.map(function(d){
+      return '<div class="mv"><span class="d">'+esc(d.desc)+
+        '<small>'+(d.reg? "ya registrado como movimiento" : "sin marcar · se suma arriba")+'</small></span>'+
+        '<span class="m num'+(d.reg?" sub":"")+'">'+fmtC(d.c)+'</span></div>'; }).join("")
+    : '<div class="vacio">Ninguno se paga con esta tarjeta.</div>';
   abreHoja(h);
 }
 
@@ -1097,9 +1163,27 @@ function vCierres(){
         '<span class="dif num'+(df<0?" neg":"")+'">'+fmtC(df,true)+'</span></span>'+
       '<span class="c2">'+(df<0? "se pasó" : "ahorró")+
         ' · presupuesto '+fmtC(pr)+' · gasto '+fmtC(ga)+'</span></button>';
-    if(ab) h+=mapaHTML(k);
+    if(ab) h+='<div class="linea-det" style="padding:2px 13px 10px">'+
+        '<button class="lnk" data-acc="cierre-presu" data-v="'+esc(k)+'">'+
+        'ver el presupuesto rubro por rubro ('+presuRubros(S,k).length+')</button></div>'+mapaHTML(k);
   });
   return h+'</div>';
+}
+function hojaPresuVentana(k){
+  var rs=presuRubros(S,k), tot=totPresuC(S,k), gas=gastosC(S,k);
+  var h='<h3>Presupuesto &middot; '+esc(nomVentana(k))+'</h3>'+
+    '<div class="hsub">'+fmtC(tot)+' presupuestado &middot; '+fmtC(gas)+' gastado</div>'+
+    '<p class="sub">Es la suma de todos los rubros con importe asignado en esta ventana — '+
+    'la misma cifra que la app madre muestra en <b>Presupuesto contra real → Gastos → presupuesto</b>. '+
+    'Si algo no cuadra, la diferencia está en alguno de estos renglones.</p>';
+  h+= rs.length? rs.map(function(r){
+      return '<div class="mv"><span class="d">'+esc(r.cat)+
+        '<small>gastado '+fmtC(r.gastoC)+'</small></span>'+
+        '<span class="m num">'+fmtC(r.presC)+'</span></div>'; }).join("")+
+      '<div class="mv"><span class="d"><b>Total</b></span>'+
+        '<span class="m num"><b>'+fmtC(tot)+'</b></span></div>'
+    : '<div class="vacio">Esta ventana no tiene ningún rubro con presupuesto.</div>';
+  abreHoja(h);
 }
 function mapaHTML(k){
   var rs=rubrosDe(S,k).filter(function(r){ return r.gastoC>0; });
@@ -1228,6 +1312,7 @@ document.addEventListener("click", function(e){
   }
   if(acc==="rubro-sel"){ VISTA.rubro=v; pinta(); return; }
   if(acc==="cierre"){ VISTA.cierre = (VISTA.cierre===v? null : v); pinta(); return; }
+  if(acc==="cierre-presu"){ hojaPresuVentana(v); return; }
   if(acc==="menu"){ hojaMenu(); return; }
   if(acc==="elegir"){ hojaElegir(); return; }
   if(acc==="elegir-ok"){
@@ -1245,11 +1330,14 @@ document.addEventListener("click", function(e){
   if(acc==="nota-nueva"){ NOTA={fecha:hoyISO(), que:"", monto:"", pago:""}; notaPaso(1); return; }
   if(acc==="nota-paso"){ notaPaso(+v); return; }
   if(acc==="nota-forma"){ guardaNota(v); return; }
-  if(acc==="tj-presu"){ hojaPresuTj(v); return; }
+  if(acc==="tj-gasto"){ hojaGastoTj(v); return; }
   if(acc==="nota-borrar"){ pideBorrar(t,v); return; }
   if(acc==="nota-borrar-ok"){ borraNota(v); return; }
 }, false);
 
+document.addEventListener("keydown", function(e){
+  if(e.key==="Escape") cierraHoja();
+}, false);
 document.addEventListener("change", function(e){
   var t=e.target;
   if(t && t.id==="selK"){ VISTA.k=t.value; VISTA.cierre=null; pinta(); }

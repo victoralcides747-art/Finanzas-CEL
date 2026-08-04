@@ -114,10 +114,15 @@ main{padding:10px 12px 20px}
   flex-wrap:wrap;align-items:baseline;gap:0 10px;container-type:inline-size}
 .duo .et{order:1;font-size:14px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;
   flex:1 0 auto;min-width:0;white-space:nowrap}
-.duo .pie{order:2;font-size:13.5px;color:var(--tx3);text-align:right;white-space:nowrap}
-.duo .vl{order:3;font-size:clamp(23px,11.1cqw,44px);font-weight:650;letter-spacing:-.8px;
+.duo .vl{order:2;font-size:clamp(23px,11.1cqw,44px);font-weight:650;letter-spacing:-.8px;
   width:100%;margin-top:1px}
+.duo .pie{order:3;font-size:14px;color:var(--tx3);width:100%;margin-top:1px}
 .neg{color:var(--mal-tx)}
+.caja.proy{background:var(--avi-bg);border-color:var(--avi-linea)}
+.caja.proy .caja-t{border-bottom-color:var(--avi-linea)}
+.caja.proy .caja-t h2{color:var(--avi-tx)}
+.caja.proy .duo,.caja.proy .duo>div{background:transparent}
+.caja.proy .duo{gap:0}
 
 /* ── filas de rubro ──────────────────────────────────────────────── */
 .rub{display:block;width:100%;text-align:left;background:none;border:0;
@@ -236,6 +241,12 @@ main{padding:10px 12px 20px}
 .hoja.arriba{border-radius:0 0 14px 14px;padding-top:calc(14px + env(safe-area-inset-top,0px));
   padding-bottom:18px;max-height:none}
 .hoja h3{margin:0 0 3px;font-size:23px;font-weight:650}
+.cot{border-top:1px solid var(--linea2);padding:11px 0 12px}
+.cot-t{font-size:19px;font-weight:650;margin-bottom:4px}
+.cot-n{display:flex;align-items:baseline;gap:10px;padding:3px 0;font-size:16.5px}
+.cot-n span{flex:1;color:var(--tx3)}
+.cot-n b{font-weight:650}
+.cot-e{font-size:13.5px;color:var(--tx3);margin-top:5px;line-height:1.35}
 .hoja .hsec{margin:14px 0 2px;font-size:13.5px;font-weight:700;letter-spacing:.05em;
   text-transform:uppercase;color:var(--tx3);border-top:1px solid var(--linea2);padding-top:10px}
 .hoja .hsub{color:var(--tx3);font-size:16px;margin-bottom:12px}
@@ -658,7 +669,90 @@ function saldoC(S,k){ return ingresosC(S,k)-gastosC(S,k); }      /* SIN GASTAR *
 function presuDe(S,k){ return (S.presu||{})[k]||{}; }
 function totPresuC(S,k){ var p=presuDe(S,k), c=0;
   Object.keys(p).forEach(function(x){ if(p[x]!=null&&p[x]!=="") c+=cts(p[x]); }); return c; }
-function sinPresupuestarC(S,k){ return ingresosC(S,k)-totPresuC(S,k); } /* SIN PRESUPUESTAR */
+/* INGRESO PRESUPUESTADO: los permanentes de ingreso activos de la ventana.
+   Es lo que la app madre llama "ingresos · presupuesto". */
+function planIngresosC(S,k){
+  var c=0;
+  permsK(S,k).forEach(function(p){
+    if(p && p.activo!==false && (p.tipo||"Egreso")==="Ingreso") c+=cts(p.monto);
+  });
+  return c;
+}
+/* PRESUPUESTO CONTRA REAL · las nueve cifras de la app madre, con su misma
+   cuenta y sus mismos signos. No se inventa nada acá: es su función cotejo().
+     ingresos → plan = permanentes de ingreso activos · real = movimientos
+     gastos   → plan = suma del presupuesto por rubro · real = movimientos
+     saldo    → plan = ingreso presupuestado − gasto presupuestado
+   La diferencia va siempre A FAVOR en positivo: en gastos es plan − real. */
+function cotejoC(S,k){
+  var ing=ingresosC(S,k), egr=gastosC(S,k), queda=ing-egr;
+  var pi=planIngresosC(S,k), pg=totPresuC(S,k), pr=pi-pg;
+  return {
+    ing:{plan:pi, real:ing,   dif:ing-pi},
+    egr:{plan:pg, real:egr,   dif:pg-egr},
+    res:{plan:pr, real:queda, dif:queda-pr}
+  };
+}
+/* SIN PRESUPUESTAR = el "saldo · presupuesto" de la madre: lo que ella marca
+   como el margen que todavía no está asignado a ningún rubro. */
+function sinPresupuestarC(S,k){ return cotejoC(S,k).res.plan; }
+
+/* =============================================================================
+   PROYECCIÓN · FUERA DEL SALDO REAL
+   -----------------------------------------------------------------------------
+   Copiada de compromiso() de la app madre, con su misma cuenta:
+
+     por rubro, lo que falta salir es el MAYOR entre
+        · el presupuesto asignado que todavía no se gastó, y
+        · los permanentes activos del rubro que todavía no se marcaron.
+     Se toma el mayor y no la suma: el presupuesto del rubro ya debería cubrir
+     sus permanentes. Sumarlos sería contar el mismo dinero dos veces.
+
+     El rubro de ahorro no es un compromiso — esa plata no sale, se guarda — así
+     que se aparta y reaparece dentro del saldo libre.
+
+     saldo libre = saldo real + ingreso por entrar − compromisos pendientes
+     sobrante sin asignar = saldo libre − ahorro presupuestado
+
+   Nada de esto es dinero real y por eso va rotulado aparte, igual que en ella.
+============================================================================= */
+function catAhorro(S){ return (S&&S.prefs&&S.prefs.rubroAhorro) || "Ahorro"; }
+function ingresoPendienteC(S,k){
+  var porCat={}, det=[], tot=0, real={};
+  permsActivosK(S,k).forEach(function(f){
+    if((f.tipo||"Egreso")!=="Ingreso") return;
+    if(movDePerm(S,k,f.id)) return;                    /* ya marcado: ya es real */
+    var c=f.cat||f.desc||"Sin categoría";
+    porCat[c]=(porCat[c]||0)+cts(f.monto);
+  });
+  movsDe(S,k).forEach(function(m){
+    if(!esIngreso(m)) return;
+    var c=catDe(m); real[c]=(real[c]||0)+cts(m.monto);
+  });
+  Object.keys(porCat).forEach(function(c){
+    var v=porCat[c]-(real[c]||0);
+    if(v>0){ tot+=v; det.push({cat:c, esperado:porCat[c], recibido:(real[c]||0), val:v}); }
+  });
+  det.sort(function(a,b){ return b.val-a.val; });
+  return {pendiente:tot, det:det};
+}
+function compromisoC(S,k,hoyIso){
+  var pend=0, det=[];
+  rubrosDe(S,k,hoyIso).forEach(function(r){
+    var porPres=(r.presC==null)?0:Math.max(0, r.presC-r.gastoC);
+    var porPerm=r.permPendC;
+    var v=Math.max(porPres,porPerm);
+    if(v>0){ pend+=v; det.push({cat:r.cat, porPres:porPres, porPerm:porPerm, val:v}); }
+  });
+  var ca=catAhorro(S), res=0;
+  det=det.filter(function(d){ if(d.cat!==ca) return true; res=d.val; return false; });
+  pend-=res;
+  det.sort(function(a,b){ return b.val-a.val; });
+  var queda=saldoC(S,k), ip=ingresoPendienteC(S,k);
+  var libre=queda+ip.pendiente-pend;
+  return {pendiente:pend, det:det, ingPend:ip.pendiente, ingDet:ip.det,
+          reservaAhorro:res, sobrante:libre-res, libre:libre};
+}
 function gastoCatC(S,k,cat){ var c=0;
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===cat) c+=cts(m.monto); }); return c; }
 function movsCat(S,k,cat){
@@ -669,7 +763,14 @@ function movsCat(S,k,cat){
    la lista, más los que aparecen en movimientos, más los que tienen presupuesto,
    más los de los permanentes activos. */
 function permsK(S,k){ return ((S.perms||{})[k])||[]; }
-function rubrosDe(S,k){
+function permsActivosK(S,k){ return permsK(S,k).filter(function(f){ return f && f.activo!==false; }); }
+/* Los permanentes de gasto de un rubro que este período tocan — igual que la madre. */
+function permsDeRubro(S,k,cat,hoyIso){
+  return permsActivosK(S,k).filter(function(p){
+    return (p.tipo||"Egreso")!=="Ingreso" && (p.cat||"Sin categoría")===cat && permToca(S,p,hoyIso);
+  });
+}
+function rubrosDe(S,k,hoyIso){
   var p=presuDe(S,k), nombres=(S.catE||[]).slice(), out=[];
   function mete(c){ if(nombres.indexOf(c)<0) nombres.push(c); }
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m)) mete(catDe(m)); });
@@ -679,9 +780,15 @@ function rubrosDe(S,k){
   nombres.forEach(function(c){
     var g=0, n=0;
     movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===c){ g+=cts(m.monto); n++; } });
+    var pf=0, pp=0;
+    permsDeRubro(S,k,c,hoyIso).forEach(function(f){
+      pf+=cts(f.monto);
+      if(!movDePerm(S,k,f.id)) pp+=cts(f.monto);
+    });
     var tiene = p[c]!=null && p[c]!=="";
     var pre = tiene? cts(p[c]) : null;
-    out.push({cat:c, presC:pre, gastoC:g, n:n, quedaC:(pre==null?null:pre-g)});
+    out.push({cat:c, presC:pre, gastoC:g, n:n, permC:pf, permPendC:pp,
+              quedaC:(pre==null?null:pre-g)});
   });
   return out;
 }
@@ -925,8 +1032,8 @@ function nSig(c){ return c<0? " neg":""; }
 
 /* Explicaciones: se ven al tocar (o dejar el dedo) sobre el dato. */
 var EX={
-  singastar:["Sin gastar","<code>ingresos − gastos</code> de esta ventana, solo con movimientos registrados. Es la plata que todavía está.<br><br>No es lo mismo que sin presupuestar: acá entra todo lo que no se ha gastado, incluso lo que ya tiene rubro asignado."],
-  sinpresu:["Sin presupuestar","<code>ingresos − suma del presupuesto</code> de esta ventana. Es la plata que todavía no tiene rubro asignado.<br><br>Puede ser negativo: significa que el presupuesto reparte más de lo que entró."],
+  singastar:["Saldo real · sin gastar","<code>ingresos − gastos</code> de esta ventana, solo con movimientos registrados.<br><br>Es el mismo número que la app madre muestra como <b>SALDO REAL</b>."],
+  proy:["Proyección","<code>saldo real + ingreso por entrar − compromisos pendientes</code>.<br><br>Es el mismo <b>saldo libre proyectado</b> de la app madre: lo que queda después de ejecutar el presupuesto. No es dinero real y por eso va en su propio recuadro."],
   rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de esta ventana."],
   gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en esta ventana:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los permanentes de esta ventana que se pagan con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
   anterior:["Corte anterior","Lo que gastaste con esta tarjeta en la ventana anterior, y si marcaste ese corte como pagado.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
@@ -1020,8 +1127,8 @@ function filaRubro(r,mini){
     '</button>';
 }
 function vRubros(){
-  var k=kAct(), rs=rubrosDe(S,k), sel=interes();
-  var sg=saldoC(S,k), sp=sinPresupuestarC(S,k);
+  var k=kAct(), rs=rubrosDe(S,k,hoyISO()), sel=interes();
+  var sg=saldoC(S,k);
   function ord(a,b){
     if(a.gastoC!==b.gastoC) return b.gastoC-a.gastoC;
     var ap=a.presC||0, bp=b.presC||0;
@@ -1030,13 +1137,19 @@ function vRubros(){
   }
   var arr=rs.filter(function(r){ return sel.indexOf(r.cat)>=0; }).sort(ord);
   var rest=rs.filter(function(r){ return sel.indexOf(r.cat)<0; }).sort(ord);
+  var ing=ingresosC(S,k), gas=gastosC(S,k), nMov=movsDe(S,k).length;
+  var cmp=compromisoC(S,k,hoyISO());
   var h='<div class="caja"><div class="duo">'+
-    '<div data-acc="ex" data-ex="singastar"><span class="et">Sin gastar</span>'+
+    '<div data-acc="ex" data-ex="singastar"><span class="et">Saldo real &middot; sin gastar</span>'+
       '<span class="vl num'+nSig(sg)+'">'+fmtC(sg)+'</span>'+
-      '<span class="pie">ingresos − gastos</span></div>'+
-    '<div data-acc="ex" data-ex="sinpresu"><span class="et">Sin presupuestar</span>'+
-      '<span class="vl num'+nSig(sp)+'">'+fmtC(sp)+'</span>'+
-      '<span class="pie">ingresos − presupuesto</span></div>'+
+      '<span class="pie">'+fmtC(ing)+' − '+fmtC(gas)+' &middot; '+nMov+' movimientos</span></div>'+
+    '</div></div>'+
+    '<div class="caja proy"><div class="caja-t"><h2>Proyección &middot; fuera del saldo real</h2></div>'+
+    '<div class="duo"><div data-acc="proy" data-v="'+esc(k)+'">'+
+      '<span class="et">Saldo libre proyectado</span>'+
+      '<span class="vl num'+nSig(cmp.libre)+'">'+fmtC(cmp.libre,true)+'</span>'+
+      '<span class="pie">saldo real'+(cmp.ingPend>0? ' + '+fmtC(cmp.ingPend)+' por entrar':'')+
+        ' − '+fmtC(cmp.pendiente)+' de compromisos pendientes &middot; ver detalle</span></div>'+
     '</div></div>';
   h+='<div class="caja"><div class="caja-t"><h2>Rubros de interés</h2><span class="sp"></span>'+
      '<button class="lnk" data-acc="elegir">elegir</button></div>'+
@@ -1049,6 +1162,41 @@ function vRubros(){
         '<div class="vacio">No hay más rubros.</div>' : '')+
      '</div>';
   return h;
+}
+function hojaProyeccion(k){
+  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k);
+  var h='<h3>Proyección &middot; '+esc(nomVentana(k))+'</h3>'+
+    '<div class="hsub">fuera del saldo real &middot; las mismas cifras de la app madre</div>'+
+    '<div class="cot"><div class="cot-t">Saldo libre proyectado</div>'+
+      '<div class="cot-n"><span>saldo real</span><b class="num">'+fmtC(saldoC(S,k))+'</b></div>'+
+      (c.ingPend>0? '<div class="cot-n"><span>+ ingreso por entrar</span><b class="num">'+fmtC(c.ingPend)+'</b></div>':'')+
+      '<div class="cot-n"><span>− compromisos pendientes</span><b class="num">'+fmtC(c.pendiente)+'</b></div>'+
+      '<div class="cot-n"><span><b>saldo libre proyectado</b></span><b class="num'+nSig(c.libre)+'">'+fmtC(c.libre,true)+'</b></div>'+
+      '<div class="cot-n"><span>ahorro presupuestado</span><b class="num">'+fmtC(c.reservaAhorro)+'</b></div>'+
+      '<div class="cot-n"><span><b>sobrante sin asignar</b></span><b class="num'+nSig(c.sobrante)+'">'+fmtC(c.sobrante,true)+'</b></div>'+
+      '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. El rubro de ahorro no es compromiso: esa plata no sale, se guarda.</div></div>'+
+    '<div class="cot"><div class="cot-t">Sin presupuestar</div>'+
+      '<div class="cot-n"><span>ingreso presupuestado</span><b class="num">'+fmtC(t.ing.plan)+'</b></div>'+
+      '<div class="cot-n"><span>− presupuesto</span><b class="num">'+fmtC(t.egr.plan)+'</b></div>'+
+      '<div class="cot-n"><span><b>margen sin asignar</b></span><b class="num'+nSig(t.res.plan)+'">'+fmtC(t.res.plan,true)+'</b></div>'+
+      '<div class="cot-e">Es el «saldo · presupuesto» de la app madre. Ojo: no es lo mismo que el sobrante sin asignar de arriba — este compara lo que esperás que entre contra lo que repartiste; aquel parte del saldo real y de lo que ya está comprometido.</div></div>';
+  h+='<div class="hsec">Compromisos pendientes ('+c.det.length+')</div>';
+  h+= c.det.length? c.det.map(function(d){
+      return '<div class="mv"><span class="d">'+esc(d.cat)+
+        '<small>'+(d.porPerm>d.porPres? "manda el permanente sin marcar" :
+                   (d.porPres>0? "presupuesto sin gastar" : "—"))+
+        (d.porPerm>0? ' &middot; permanente '+fmtC(d.porPerm):'')+
+        (d.porPres>0? ' &middot; presupuesto '+fmtC(d.porPres):'')+'</small></span>'+
+        '<span class="m num">'+fmtC(d.val)+'</span></div>'; }).join("")
+    : '<div class="vacio">Ningún rubro tiene compromisos pendientes.</div>';
+  if(c.ingDet.length){
+    h+='<div class="hsec">Ingreso por entrar ('+c.ingDet.length+')</div>'+
+      c.ingDet.map(function(d){
+        return '<div class="mv"><span class="d">'+esc(d.cat)+
+          '<small>esperado '+fmtC(d.esperado)+' &middot; recibido '+fmtC(d.recibido)+'</small></span>'+
+          '<span class="m num">'+fmtC(d.val)+'</span></div>'; }).join("");
+  }
+  abreHoja(h);
 }
 function hojaRubro(cat){
   var k=kAct(), ms=movsCat(S,k,cat), tot=gastoCatC(S,k,cat), pres=presuDe(S,k)[cat];
@@ -1157,17 +1305,36 @@ function vCierres(){
   var h='<div class="caja"><div class="caja-t"><h2>Cierre por ventana</h2><span class="sp"></span>'+
     '<button class="lnk" data-acc="ex" data-ex="cierre">cómo se calcula</button></div>';
   vs.forEach(function(k){
-    var pr=totPresuC(S,k), ga=gastosC(S,k), df=pr-ga, ab=VISTA.cierre===k;
+    var c=cotejoC(S,k), pr=c.egr.plan, ga=c.egr.real, df=c.egr.dif, ab=VISTA.cierre===k;
     h+='<button class="cie'+(ab?" on":"")+'" data-acc="cierre" data-v="'+esc(k)+'">'+
       '<span class="c1"><b>'+esc(nomVentana(k))+'</b>'+
         '<span class="dif num'+(df<0?" neg":"")+'">'+fmtC(df,true)+'</span></span>'+
       '<span class="c2">'+(df<0? "se pasó" : "ahorró")+
         ' · presupuesto '+fmtC(pr)+' · gasto '+fmtC(ga)+'</span></button>';
     if(ab) h+='<div class="linea-det" style="padding:2px 13px 10px">'+
+        '<button class="lnk" data-acc="cierre-cotejo" data-v="'+esc(k)+'">presupuesto contra real</button>'+
         '<button class="lnk" data-acc="cierre-presu" data-v="'+esc(k)+'">'+
-        'ver el presupuesto rubro por rubro ('+presuRubros(S,k).length+')</button></div>'+mapaHTML(k);
+        'presupuesto rubro por rubro ('+presuRubros(S,k).length+')</button></div>'+mapaHTML(k);
   });
   return h+'</div>';
+}
+/* La misma tabla que la app madre muestra en «Presupuesto contra real»,
+   con sus mismas tres filas y sus mismos tres números. */
+function hojaCotejo(k){
+  var c=cotejoC(S,k);
+  function fila(t,o,expl){
+    return '<div class="cot"><div class="cot-t">'+t+'</div>'+
+      '<div class="cot-n"><span>presupuesto</span><b class="num">'+fmtC(o.plan)+'</b></div>'+
+      '<div class="cot-n"><span>real</span><b class="num">'+fmtC(o.real)+'</b></div>'+
+      '<div class="cot-n"><span>dif.</span><b class="num'+(o.dif<0?" neg":"")+'">'+fmtC(o.dif,true)+'</b></div>'+
+      '<div class="cot-e">'+expl+'</div></div>';
+  }
+  abreHoja('<h3>Presupuesto contra real</h3>'+
+    '<div class="hsub">'+esc(nomVentana(k))+' &middot; las mismas cifras de la app madre</div>'+
+    fila("Ingresos",c.ing,"presupuesto: permanentes de ingreso activos &middot; real: movimientos de tipo Ingreso &middot; dif. = real − presupuesto")+
+    fila("Gastos",c.egr,"presupuesto: suma del importe asignado a todos los rubros &middot; real: movimientos de tipo Egreso &middot; dif. = presupuesto − real, porque gastar menos suma a favor")+
+    fila("Saldo",c.res,"presupuesto: ingreso presupuestado − gasto presupuestado; es el margen sin asignar a ningún rubro &middot; real: saldo real &middot; dif. = real − presupuesto")+
+    '<div class="pasos"><button data-acc="cerrar-hoja">Cerrar</button></div>');
 }
 function hojaPresuVentana(k){
   var rs=presuRubros(S,k), tot=totPresuC(S,k), gas=gastosC(S,k);
@@ -1186,7 +1353,7 @@ function hojaPresuVentana(k){
   abreHoja(h);
 }
 function mapaHTML(k){
-  var rs=rubrosDe(S,k).filter(function(r){ return r.gastoC>0; });
+  var rs=rubrosDe(S,k,hoyISO()).filter(function(r){ return r.gastoC>0; });
   if(!rs.length) return '<div class="vacio">Sin gastos registrados en esta ventana.</div>';
   var datos=rs.map(function(r){ return {nombre:r.cat, valor:r.gastoC}; });
   var bl=squarify(datos,100,85);
@@ -1313,6 +1480,8 @@ document.addEventListener("click", function(e){
   if(acc==="rubro-sel"){ VISTA.rubro=v; pinta(); return; }
   if(acc==="cierre"){ VISTA.cierre = (VISTA.cierre===v? null : v); pinta(); return; }
   if(acc==="cierre-presu"){ hojaPresuVentana(v); return; }
+  if(acc==="cierre-cotejo"){ hojaCotejo(v); return; }
+  if(acc==="proy"){ hojaProyeccion(v); return; }
   if(acc==="menu"){ hojaMenu(); return; }
   if(acc==="elegir"){ hojaElegir(); return; }
   if(acc==="elegir-ok"){
@@ -1369,7 +1538,7 @@ function hojaMenu(){
       '<button data-acc="bloquear">Bloquear</button></div>');
 }
 function hojaElegir(){
-  var k=kAct(), rs=rubrosDe(S,k), sel=interes();
+  var k=kAct(), rs=rubrosDe(S,k,hoyISO()), sel=interes();
   rs.sort(function(a,b){ if(a.gastoC!==b.gastoC) return b.gastoC-a.gastoC;
     return String(a.cat).localeCompare(String(b.cat)); });
   abreHoja('<h3>Rubros de interés</h3>'+

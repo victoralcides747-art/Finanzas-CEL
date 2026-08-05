@@ -137,8 +137,8 @@ main{padding:10px 12px 20px}
 .rub .r2 .gas{color:var(--gasto-tx)}
 .rub .r2 .pre{color:var(--plan-tx)}
 .rub .r2{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:15.5px;color:var(--tx3)}
-/* la pista es el presupuesto (azul) y lo lleno es lo gastado (naranja) */
-.rub .pista{display:block;height:5px;background:var(--plan-pista);border-radius:2px;
+/* la pista es lo que todavía queda (verde) y lo lleno es lo gastado (naranja) */
+.rub .pista{display:block;height:5px;background:#bfe3c6;border-radius:2px;
   margin-top:7px;overflow:hidden}
 .rub .pista i{display:block;height:100%;background:var(--gasto);border-radius:2px}
 .rub .pista i.over{background:#d98a8a}
@@ -207,7 +207,9 @@ main{padding:10px 12px 20px}
 .cie .c1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
 .cie .c1 b{font-weight:650;font-size:20.5px;flex:1 1 auto;min-width:0}
 .cie .dif{font-weight:650;font-size:20.5px;white-space:nowrap}
-.cie .c2{font-size:15.5px;color:var(--tx3);margin-top:3px}
+.cie .c2{display:block;font-size:15.5px;color:var(--tx3);margin-top:3px}
+.cie .dif{color:var(--ok-tx)}
+.cie .dif.neg{color:var(--mal-tx)}
 .mapa{position:relative;width:100%;background:var(--card2);
   border-top:1px solid var(--linea2)}
 .blq{position:absolute;overflow:hidden;border:1px solid var(--card);
@@ -776,10 +778,7 @@ function apartadoAhorroC(S,k){
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===ca) c+=cts(m.monto); });
   return c;
 }
-function ahorroAlCerrarC(S,k){
-  var ap=apartadoAhorroC(S,k), sal=saldoC(S,k);
-  return {apartado:ap, saldo:sal, total:ap+sal};
-}
+function ahorroAlCerrarC(S,k){ return sobroC(S,k); }
 function gastoCatC(S,k,cat){ var c=0;
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===cat) c+=cts(m.monto); }); return c; }
 function movsCat(S,k,cat){
@@ -830,8 +829,18 @@ function presuRubros(S,k){
   out.sort(function(a,b){ return b.presC-a.presC; });
   return out;
 }
+/* El cruce entre el movimiento y la tarjeta es por NOMBRE, y se compara sin
+   acentos ni mayúsculas: "Promerica" y "Promérica" son la misma tarjeta. */
+function mismoPago(a,b){ return clave(a)===clave(b) && clave(a)!==""; }
 function gastoTarjetaC(S,k,nombre){ var c=0;
-  movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && m.pago===nombre) c+=cts(m.monto); }); return c; }
+  movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && mismoPago(m.pago,nombre)) c+=cts(m.monto); });
+  return c; }
+/* LO QUE SOBRÓ AL CERRAR LA VENTANA: lo que se apartó al rubro de ahorro (que
+   salió como gasto) más todo lo que entró y no se gastó. */
+function sobroC(S,k){
+  var ap=apartadoAhorroC(S,k), sal=saldoC(S,k);
+  return {apartado:ap, saldo:sal, total:ap+sal};
+}
 
 /* ---------- ventanas: mosaico de cortes, nunca meses del calendario ---------- */
 function ventanasOrd(S){
@@ -952,7 +961,7 @@ function permsTarjeta(S,k,nombre,hoyIso){
     if(!f || f.activo===false) return;
     if((f.tipo||"Egreso")!=="Egreso") return;
     if(!(cts(f.monto)>0)) return;
-    if(clave(f.pago||"")!==clave(nombre)) return;
+    if(!mismoPago(f.pago,nombre)) return;
     if(!permToca(S,f,hoyIso)) return;
     var reg=!!movDePerm(S,k,f.id);
     det.push({desc:f.desc||f.cat||"permanente", cat:f.cat||"", c:cts(f.monto), reg:reg});
@@ -994,6 +1003,20 @@ function colorTj(S,nombre){
 }
 function estiloTj(S,nombre){
   var c=colorTj(S,nombre); return "--tj-bg:"+c.bg+";--tj-ln:"+c.ln;
+}
+/* Qué formas de pago aparecen de verdad en los movimientos de la ventana, con
+   cuántos. Sirve para ver de un vistazo si el nombre de una tarjeta no cruza
+   con lo que llevan los movimientos. */
+function formasUsadas(S,k){
+  var m={}, out=[];
+  movsDe(S,k).forEach(function(x){
+    if(esIngreso(x)) return;
+    var f=(x.pago||"").trim() || "(sin forma de pago)";
+    m[f]=(m[f]||0)+1;
+  });
+  Object.keys(m).forEach(function(f){ out.push({pago:f, n:m[f]}); });
+  out.sort(function(a,b){ return b.n-a.n; });
+  return out;
 }
 /* Las formas de pago tal como están en la app madre, en su orden. Si la lista
    viniera vacía, se arman con las tarjetas anotadas más Efectivo. */
@@ -1094,7 +1117,7 @@ var EX={
   disp:["Disponible estimado","<code>límite − gasto real de esta ventana</code>.<br><br>Es una estimación de ESTA ventana. No es el saldo del banco: no incluye lo que se deba del corte anterior.<br><br>Si el límite está en otra moneda, se convierte a lempiras con la tasa de la app madre y se dice cuál se usó; el límite guardado no se toca."],
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
-  cierre:["Cierre de ventana","<code>presupuestado − gastado</code>. Se calcula al vuelo cada vez que abrís la app: si la madre corrige un movimiento, esto cambia solo. No hay nada guardado."],
+  cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
   registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ninguna ventana."],
   estado:["De dónde viene lo que ves","EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
 };
@@ -1310,25 +1333,29 @@ function vTarjetas(){
         (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>'+
       '<div class="tj-g">'+
         '<div data-acc="tj-gasto" data-v="'+esc(t.nombre)+'"><span class="et">Gasto real</span>'+
-          '<span class="vl num'+nSig(g.c)+'">'+fmtC(g.c)+'</span>'+
-          '<span class="pie-est">'+
-            (g.pendC>0
-              ? fmtC(g.movC)+' registrados + '+fmtC(g.pendC)+' de '+g.det.filter(function(x){return !x.reg;}).length+
-                ' permanente'+(g.det.filter(function(x){return !x.reg;}).length===1?"":"s")+' sin marcar &middot; ver detalle'
-              : (g.det.length? 'todos sus permanentes ya están registrados &middot; ver detalle'
-                             : 'solo movimientos &middot; ver detalle'))+
-          '</span></div>'+
+          ((g.c===0 && !g.movC && !g.det.length)
+            ? '<span class="vl chico">sin movimientos en esta ventana &middot; ver por qué</span>'
+            : '<span class="vl num'+nSig(g.c)+'">'+fmtC(g.c)+'</span>'+
+              '<span class="pie-est">'+
+                (g.pendC>0
+                  ? fmtC(g.movC)+' registrados + '+fmtC(g.pendC)+' de '+g.det.filter(function(x){return !x.reg;}).length+
+                    ' permanente'+(g.det.filter(function(x){return !x.reg;}).length===1?"":"s")+' sin marcar &middot; ver detalle'
+                  : (g.det.length? 'todos sus permanentes ya están registrados &middot; ver detalle'
+                                 : 'solo movimientos &middot; ver detalle'))+
+              '</span>')+
+        '</div>'+
         (ant? '<div data-acc="ex" data-ex="anterior">'+
             '<span class="et">Corte anterior &middot; '+esc(nomVentana(ant.k))+'</span>'+
-            '<span class="vl num">'+fmtC(ant.c)+'</span>'+
-            '<span class="pie-est'+(ant.c>0&&!ant.pagado?" pend":"")+'">'+
-              (!(ant.c>0)? "sin consumo en esa ventana"
-                : (ant.pagado? "marcado como pagado" : "sin marcar como pagado"))+'</span></div>'
+            (ant.c>0
+              ? '<span class="vl num">'+fmtC(ant.c)+'</span>'+
+                '<span class="pie-est'+(ant.pagado?"":" pend")+'">'+
+                  (ant.pagado? "marcado como pagado" : "sin marcar como pagado")+'</span>'
+              : '<span class="vl chico">sin consumo en esa ventana</span>')+'</div>'
           : '<div><span class="et">Corte anterior</span>'+
             '<span class="vl chico">no hay ventana anterior</span></div>')+
       '</div>'+
       '<div class="linea-det"><span data-acc="ex" data-ex="disp">'+
-        (de.hay? "disponible estimado "+fmtC(de.c)
+        (de.hay? "disponible estimado "+fmtC(de.c)+" · límite menos lo registrado"
                : (de.lim.sinTasa? "límite en "+esc(de.lim.mon)+" sin tasa para convertir"
                                 : "sin límite anotado"))+'</span>'+
         (de.hay && de.lim.mon!=="Lps"
@@ -1346,7 +1373,7 @@ function vTarjetas(){
 }
 function hojaGastoTj(nombre){
   var k=kAct(), g=gastoTjTotal(S,k,nombre,hoyISO());
-  var ms=movsDe(S,k).filter(function(m){ return !esIngreso(m) && m.pago===nombre; })
+  var ms=movsDe(S,k).filter(function(m){ return !esIngreso(m) && mismoPago(m.pago,nombre); })
     .sort(function(a,b){ return String(a.fecha||"").localeCompare(String(b.fecha||"")); });
   var h='<h3>'+esc(nombre)+'</h3>'+
     '<div class="hsub">'+esc(nomVentana(k))+' &middot; '+fmtC(g.c)+' en total</div>'+
@@ -1359,6 +1386,14 @@ function hojaGastoTj(nombre){
         '<span class="d">'+esc(m.desc||"—")+'<small>'+esc(m.cat||"Sin categoría")+'</small></span>'+
         '<span class="m num">'+fmtC(cts(m.monto))+'</span></div>'; }).join("")
     : '<div class="vacio">Ninguno con esta tarjeta en esta ventana.</div>';
+  if(!ms.length){
+    var us=formasUsadas(S,k);
+    h+='<div class="nota" style="margin:10px 0">No hay ningún movimiento con esta forma de pago '+
+      'en esta ventana. Las que sí aparecen son: '+
+      (us.length? us.map(function(u){ return esc(u.pago)+' ('+u.n+')'; }).join(", ")
+                : 'ninguna')+'. Si alguna es esta tarjeta escrita distinto, el nombre de la '+
+      'libreta y el de la forma de pago tienen que coincidir en la app madre.</div>';
+  }
   h+='<div class="hsec">Permanentes con esta tarjeta ('+g.det.length+')</div>';
   h+= g.det.length? g.det.map(function(d){
       return '<div class="mv"><span class="d">'+esc(d.desc)+
@@ -1375,12 +1410,15 @@ function vCierres(){
   var h='<div class="caja"><div class="caja-t"><h2>Cierre por ventana</h2><span class="sp"></span>'+
     '<button class="lnk" data-acc="ex" data-ex="cierre">cómo se calcula</button></div>';
   vs.forEach(function(k){
-    var c=cotejoC(S,k), pr=c.egr.plan, ga=c.egr.real, df=c.egr.dif, ab=VISTA.cierre===k;
+    var c=cotejoC(S,k), so=sobroC(S,k);
+    var pr=c.egr.plan, ga=c.egr.real, df=c.egr.dif, ab=VISTA.cierre===k;
     h+='<button class="cie'+(ab?" on":"")+'" data-acc="cierre" data-v="'+esc(k)+'">'+
       '<span class="c1"><b>'+esc(nomVentana(k))+'</b>'+
-        '<span class="dif num'+(df<0?" neg":"")+'">'+fmtC(df,true)+'</span></span>'+
-      '<span class="c2">'+(df<0? "se pasó" : "ahorró")+
-        ' · presupuesto '+fmtC(pr)+' · gasto '+fmtC(ga)+'</span></button>';
+        '<span class="dif num'+(so.total<0?" neg":"")+'">'+fmtC(so.total,true)+'</span></span>'+
+      '<span class="c2">sobró &middot; entró '+fmtC(c.ing.real)+' − se gastó '+fmtC(c.egr.real)+
+        (so.apartado>0? ' + '+fmtC(so.apartado)+' apartado al ahorro':'')+'</span>'+
+      '<span class="c2">presupuesto '+fmtC(pr)+' &middot; '+
+        (df<0? "se pasó "+fmtC(-df) : "gastó "+fmtC(df)+" menos")+'</span></button>';
     if(ab) h+='<div class="linea-det" style="padding:2px 13px 10px">'+
         '<button class="lnk" data-acc="cierre-cotejo" data-v="'+esc(k)+'">presupuesto contra real</button>'+
         '<button class="lnk" data-acc="cierre-presu" data-v="'+esc(k)+'">'+

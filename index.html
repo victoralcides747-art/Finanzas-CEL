@@ -950,7 +950,10 @@ function plazoDe(tj,hoy){
   var r={corte:null, hastaCorte:null, desdeCorte:null};
   if(tj.corte==null || !(tj.corte>=1&&tj.corte<=31)) return r;
   var ca=corteQueAtrapa(tj.corte,hoy), an=corteAnterior(tj.corte,hoy);
-  r.corte=ca; r.hastaCorte=diasEntre(hoy,ca); r.desdeCorte=diasEntre(an,hoy);
+  r.corte=ca; r.hastaCorte=diasEntre(hoy,ca);
+  /* desdeCorte es del corte ANTERIOR, no del abierto. No se muestra en la línea
+     de datos generales: ahí todo tiene que hablar del corte que está abierto. */
+  r.desdeCorte=diasEntre(an,hoy);
   return r;
 }
 /* EL LÍMITE TIENE MONEDA.
@@ -1521,12 +1524,6 @@ function txtCorte(pl){
   if(pl.hastaCorte===1) return "corta mañana";
   return "corta en "+pl.hastaCorte+" días";
 }
-function txtDesde(pl){
-  if(pl.desdeCorte==null) return "";
-  if(pl.desdeCorte===0) return "cortó hoy";
-  if(pl.desdeCorte===1) return "cortó ayer";
-  return "cortó hace "+pl.desdeCorte+" días";
-}
 function txtBene(b,topeAparte){
   return (b.pct? b.pct+"% " : "")+(b.tipo==="descuento"?"de descuento":"de cashback")+
     ((!topeAparte && b.tope)? " (tope "+fmtC(cts(b.tope))+")" : "");
@@ -1577,14 +1574,16 @@ function bloqueBenes(S,k,t){
     ' entre todos los beneficios</div>';
   return h;
 }
-/* Los datos generales de la tarjeta, debajo del nombre: cuándo corta, cuándo
-   paga, cuándo vence, cuánto es el límite y cuánto le toman las minicuotas. */
+/* Los datos generales de la tarjeta, debajo del nombre.
+   TODO lo de esta línea es del CORTE QUE ESTÁ ABIERTO: cuándo corta, cuándo
+   paga, hasta cuándo se paga, cuánto es el límite y cuánto le toman las
+   minicuotas. Nada de acá puede hablar del corte anterior — "cortó hace N días"
+   estaba acá y era del anterior; se quitó. Lo del corte anterior va abajo. */
 function datosTj(t,cu,pl,va){
   var h='<div class="tj-f" data-acc="ex" data-ex="corte">'+
     '<span>corta el '+esc(String(t.corte))+'</span>'+
     '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
-    (va? '<span>vence el '+esc(fmtD(va.fecha))+'</span>' : '')+
-    (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>';
+    (va? '<span>vence el '+esc(fmtD(va.fecha))+'</span>' : '')+'</div>';
   if(!cu.hay)
     return h+'<div class="tj-f" data-acc="ex" data-ex="cupo"><span>'+
       (cu.lim.sinTasa? "límite en "+esc(cu.lim.mon)+" sin tasa para convertir"

@@ -1158,8 +1158,19 @@ var TJ_COLORES=[
   {bg:"#ebf5f3", ln:"#96c5bd"},
   {bg:"#faf2e4", ln:"#d7be92"}
 ];
+/* Colores dictados: los que él le puso a cada tarjeta. Se busca por el nombre
+   sin acentos ni mayúsculas, y basta con que empiece igual ("economia bac" cae
+   en "economia"). Lo que no esté acá sigue tomando color por su posición en la
+   libreta, que es igual en todos los aparatos. */
+var TJ_DICHO=[
+  {pre:"economia",  bg:"#fbf6e4", ln:"#dcc476"},   /* amarilla */
+  {pre:"gascard",   bg:"#ecf2fa", ln:"#8fb3d6"},   /* azul */
+  {pre:"promerica", bg:"#f4eef9", ln:"#b9a7d3"}    /* morada */
+];
 function colorTj(S,nombre){
-  var arr=(S&&S.tarjetas)||[], c=clave(nombre), i=-1;
+  var c=clave(nombre), i;
+  for(i=0;i<TJ_DICHO.length;i++) if(c.indexOf(TJ_DICHO[i].pre)===0) return TJ_DICHO[i];
+  var arr=(S&&S.tarjetas)||[]; i=-1;
   for(var j=0;j<arr.length;j++) if(clave(arr[j].nombre)===c){ i=j; break; }
   if(i<0){ var h=0, t=String(nombre||"");
     for(var q=0;q<t.length;q++) h=(h*31+t.charCodeAt(q))%9973; i=h; }
@@ -1210,26 +1221,25 @@ function raizPal(s){
   return clave(s).split(" ").map(function(w){ return w.replace(/(es|s)$/,""); }).join(" ");
 }
 function mismaCosa(a,b){ return raizPal(a)===raizPal(b) && raizPal(a)!==""; }
-/* EL RUBRO DEL BENEFICIO: el beneficio dice "Supermercados"; si hay un rubro del
-   presupuesto que se llame igual, se muestra cuánto le queda. Si no cruza, no se
-   muestra nada: no se inventa a qué rubro pertenece un beneficio. */
+/* EQUIVALENCIAS DICTADAS: el banco nombra el beneficio de una forma y el rubro
+   del presupuesto se llama de otra. Estas las dijo él, una por una. Lo que no
+   esté acá y no coincida por nombre, no se cruza: la app no inventa sinónimos.
+   Para agregar una: la izquierda es el beneficio, la derecha el rubro. */
+var BENE_RUBRO={
+  "supermercado": "Despensa",
+  "gasolinera":   "Combustible",
+  "educacion":    "Escuela"
+};
+/* EL RUBRO DEL BENEFICIO: el beneficio dice "Farmacias" y el rubro "Farmacia" →
+   cruzan solos. "Supermercados" y "Despensa" solo cruzan por la tabla de arriba.
+   Si no cruza por ninguna vía, no se muestra cifra. */
 function rubroBene(S,k,que,hoyIso){
   if(!que) return null;
-  var rs=rubrosDe(S,k,hoyIso), i;
+  var rs=rubrosDe(S,k,hoyIso), i, dicho=BENE_RUBRO[raizPal(que)];
   for(i=0;i<rs.length;i++) if(clave(rs[i].cat)===clave(que)) return rs[i];
   for(i=0;i<rs.length;i++) if(mismaCosa(rs[i].cat,que)) return rs[i];
+  if(dicho) for(i=0;i<rs.length;i++) if(mismaCosa(rs[i].cat,dicho)) return rs[i];
   return null;
-}
-/* Los rubros que VOS marcaste para pagar con esta tarjeta (tjPref de la madre). */
-function rubrosPref(S,k,nombre,hoyIso){
-  var pref=(S&&S.tjPref)||{}, rs=rubrosDe(S,k,hoyIso), out=[];
-  Object.keys(pref).forEach(function(cat){
-    if(!mismoPago(pref[cat],nombre)) return;
-    var r=null;
-    for(var i=0;i<rs.length;i++) if(clave(rs[i].cat)===clave(cat)){ r=rs[i]; break; }
-    out.push(r || {cat:cat, presC:null, gastoC:0, quedaC:null, permPendC:0});
-  });
-  return out;
 }
 /* ---------- treemap cuadrado, a mano (squarified · Bruls-Huizing-van Wijk) ----
    Reparte un rectángulo en bloques de área proporcional al monto, armando
@@ -1526,11 +1536,6 @@ function filaBene(S,k,b,topeAparte){
     (r? txtQueda(r) : '')+
   '</div>';
 }
-function filaPref(r){
-  return '<div class="bn pref" data-acc="bn" data-v="'+esc(r.cat)+'">'+
-    '<span class="q">'+esc(r.cat)+'</span>'+
-    '<span class="p">la elegiste para este rubro</span>'+txtQueda(r)+'</div>';
-}
 /* El estado del corte anterior en un símbolo, no en una frase. La marca es a
    mano en la app madre: sin marca, pendiente, aunque la fecha ya haya pasado. */
 function marcaPago(pagado){
@@ -1549,29 +1554,22 @@ function txtVence(v){
   if(v.dias===1) return "vence mañana "+fmtD(v.fecha);
   return "vence el "+fmtD(v.fecha)+" · faltan "+v.dias+" días";
 }
-/* Los beneficios con su rubro y lo que le queda a ese rubro, más los rubros que
-   vos elegiste pagar con esta tarjeta y que no salieron ya por beneficio. */
+/* Los beneficios de la tarjeta, cada uno con lo que le queda a su rubro. */
 function bloqueBenes(S,k,t){
-  var tope=topeTj(t), h="", vistos={};
-  (t.benes||[]).forEach(function(b){
-    h+=filaBene(S,k,b,tope.hay);
-    var r=rubroBene(S,k,b.que,hoyISO());
-    if(r) vistos[clave(r.cat)]=1;
-  });
-  rubrosPref(S,k,t.nombre,hoyISO()).forEach(function(r){
-    if(vistos[clave(r.cat)]) return;
-    vistos[clave(r.cat)]=1; h+=filaPref(r);
-  });
+  var tope=topeTj(t), h="";
+  (t.benes||[]).forEach(function(b){ h+=filaBene(S,k,b,tope.hay); });
   if(!h) return '<div class="bene sub">Sin beneficios anotados.</div>';
   if(tope.hay) h+='<div class="bene sub" data-acc="ex" data-ex="tope">tope '+fmtC(tope.c)+
     ' entre todos los beneficios</div>';
   return h;
 }
-/* Los datos fríos de la tarjeta: los que se consultan, no los que se miran. */
-function pieTj(t,cu,pl){
+/* Los datos generales de la tarjeta, debajo del nombre: cuándo corta, cuándo
+   paga, cuándo vence, cuánto es el límite y cuánto le toman las minicuotas. */
+function datosTj(t,cu,pl,v){
   var h='<div class="tj-f" data-acc="ex" data-ex="corte">'+
     '<span>corta el '+esc(String(t.corte))+'</span>'+
     '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
+    (v? '<span>'+esc(txtVence(v))+'</span>' : '')+
     (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>';
   if(!cu.hay)
     return h+'<div class="tj-f" data-acc="ex" data-ex="cupo"><span>'+
@@ -1603,10 +1601,11 @@ function vTarjetas(){
     var nPend=g.det.filter(function(x){ return !x.reg; }).length;
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
-      /* 1 · quién es y en cuánto corta */
+      /* 1 · quién es, en cuánto corta y sus datos generales */
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
         '<span class="tj-c'+(urge?" urge":"")+'" data-acc="ex" data-ex="corte">'+
         esc(txtCorte(pl))+'</span></div>'+
+      datosTj(t,cu,pl,v)+
       /* 2 · cuánto queda de la tarjeta */
       (cu.hay
         ? '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
@@ -1639,14 +1638,12 @@ function vTarjetas(){
           : '<span class="e">Corte anterior &middot; '+esc(nomVentana(ant.k))+'</span>'+
             (ant.c>0
               ? '<span class="v num">'+fmtC(ant.c)+'</span>'+marcaPago(ant.pagado)+
-                (v? '<span class="x'+((!ant.pagado&&(v.vencido||v.dias<=1))?" pend":"")+'">'+
+                ((v && !ant.pagado)? '<span class="x'+((v.vencido||v.dias<=1)?" pend":"")+'">'+
                     esc(txtVence(v))+'</span>' : '')+
                 (!ant.pagado&&v? '<button class="lnk" data-acc="tj-ics" data-v="'+esc(t.nombre)+
                     '" title="Baja un archivo de calendario con aviso un día antes. Lo agrega tu celular, no la app.">recordarme</button>' : '')
               : '<span class="x">sin consumo</span>'))+
       '</div>'+
-      /* 6 · los datos fríos */
-      pieTj(t,cu,pl)+
       '</div>';
   });
   return h+'</div>';

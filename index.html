@@ -151,10 +151,10 @@ main{padding:10px 12px 20px}
 .tj{border-bottom:1px solid var(--linea2);padding:16px 15px 18px;
   border-left:6px solid var(--tj-ln,var(--linea));background:var(--tj-bg,transparent)}
 .tj:last-child{border-bottom:0}
-.tj-n{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
-.tj-n b{font-size:26px;font-weight:650;flex:1 1 auto;min-width:0;letter-spacing:-.4px;
+.tj-n{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.tj-n b{font-size:28px;font-weight:700;flex:1 1 auto;min-width:0;letter-spacing:-.5px;
   overflow-wrap:anywhere}
-.tj-c{font-size:19px;font-weight:650;color:var(--tx);white-space:nowrap}
+.tj-c{font-size:19px;font-weight:700;color:var(--plan-tx);white-space:nowrap}
 .tj-g{margin-top:12px}
 .tj-g>div{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 12px;
   padding:8px 0 9px;border-top:1px solid var(--tj-ln,var(--linea2));container-type:inline-size}
@@ -165,17 +165,41 @@ main{padding:10px 12px 20px}
 .tj-c.urge{color:var(--avi-tx);font-weight:650}
 .tj-g .pie-est{width:100%;font-size:14.5px;color:var(--tx2);margin-top:2px}
 .tj-g .pie-est.pend{color:var(--avi-tx);font-weight:600}
-/* cupo: límite actual y disponible. Mismo lenguaje de color que los rubros —
-   lo que todavía queda, en verde. */
-.tj-l{margin-top:12px;display:flex;gap:0 16px;flex-wrap:wrap}
-.tj-l>div{flex:1 1 46%;min-width:0;padding:8px 0 9px;
-  border-top:1px solid var(--tj-ln,var(--linea2));container-type:inline-size}
-.tj-l .et{display:block;font-size:14px;color:var(--tx2);text-transform:uppercase;letter-spacing:.02em}
-.tj-l .vl{display:block;font-size:clamp(20px,13.5cqw,30px);font-weight:650;letter-spacing:-.6px;margin-top:2px}
-.tj-l .vl.disp{color:var(--ok-tx)}
-.tj-l .vl.disp.neg{color:var(--mal-tx)}
-.tj-l .pie-est{display:block;font-size:14.5px;color:var(--tx2);margin-top:3px}
+/* el corte anterior: una línea, cifra chica, el estado en un símbolo */
+.tj-ant{margin-top:2px;padding:8px 0 9px;border-top:1px solid var(--tj-ln,var(--linea2));
+  display:flex;align-items:baseline;gap:0 10px;flex-wrap:wrap}
+.tj-ant .e{flex:1 1 auto;min-width:0;font-size:14px;color:var(--tx2);
+  text-transform:uppercase;letter-spacing:.02em}
+.tj-ant .v{font-size:20px;font-weight:600;color:var(--tx2)}
+.tj-ant .x{width:100%;font-size:14.5px;color:var(--tx2)}
+.tj-ant .x.pend{color:var(--avi-tx);font-weight:600}
+.tj-ant .lnk{font-size:14.5px;padding:0;margin-top:2px}
+.mk{font-size:15px;font-weight:600;white-space:nowrap}
+.mk.ok{color:var(--ok-tx)}
+.mk.no{color:var(--avi-tx)}
+/* el disponible: el número que manda en la tarjeta */
+.tj-d{margin-top:4px;padding:2px 0 8px;container-type:inline-size}
+.tj-d .et{display:block;font-size:14px;color:var(--tx2);text-transform:uppercase;letter-spacing:.02em}
+.tj-d .vl{display:block;font-size:clamp(26px,12cqw,42px);font-weight:700;letter-spacing:-.7px;
+  margin-top:1px;color:var(--ok-tx)}
+.tj-d .vl.neg{color:var(--mal-tx)}
+.tj-d .pie-est{display:block;font-size:14.5px;color:var(--tx2);margin-top:3px}
+/* beneficios: el rubro a la izquierda, lo que le queda a ese rubro a la derecha */
+.bn{display:flex;align-items:baseline;gap:0 10px;flex-wrap:wrap;padding:7px 0;
+  border-top:1px solid var(--tj-ln,var(--linea2))}
+.bn .q{flex:1 1 auto;min-width:0;font-size:19px;font-weight:650;overflow-wrap:anywhere}
+.bn .d{font-size:19px;font-weight:650;color:var(--ok-tx);white-space:nowrap}
+.bn .d.neg{color:var(--mal-tx)}
+.bn .d.sin{font-size:15px;font-weight:500;color:var(--tx3)}
+.bn .p{width:100%;font-size:15px;color:var(--tx2);margin-top:1px}
+.bn.pref .q{font-weight:600;color:var(--tx2)}
+/* los datos fríos, al final y en chico */
+.tj-f{display:flex;gap:0 12px;flex-wrap:wrap;font-size:14.5px;color:var(--tx3);
+  align-items:baseline;margin-top:5px}
+.tj-f b{font-weight:650;color:var(--tx2)}
+.tj-f .pend{color:var(--avi-tx);font-weight:600}
 .linea-det .pend{color:var(--avi-tx);font-weight:600}
+.linea-det b{font-weight:650;color:var(--tx)}
 /* la cuenta del cupo, renglón por renglón */
 .cta{display:flex;align-items:baseline;gap:10px;padding:7px 0;
   border-bottom:1px solid var(--linea2)}
@@ -891,6 +915,21 @@ function corteAnterior(dia,hoy){
   if(f>=h) f=fechaDia(h.getFullYear(),h.getMonth()-1,dia);
   return f;
 }
+/* El primer día `dia` del mes que cae DESPUÉS de una fecha dada. */
+function proxDiaDelMes(dia,desde){
+  var h=dsol(desde), f=fechaDia(h.getFullYear(),h.getMonth(),dia);
+  if(f<=h) f=fechaDia(h.getFullYear(),h.getMonth()+1,dia);
+  return f;
+}
+/* FECHA LÍMITE DE PAGO DEL CORTE ANTERIOR: el primer día de pago que cae después
+   de que ese corte cerró. Es un RECORDATORIO. No decide si algo está pagado —
+   eso solo lo dice tu marca — y no mueve ningún número (regla 3). */
+function vencePago(tj,hoy){
+  if(tj.pago==null || !(tj.pago>=1&&tj.pago<=31)) return null;
+  if(tj.corte==null || !(tj.corte>=1&&tj.corte<=31)) return null;
+  var an=corteAnterior(tj.corte,hoy), f=proxDiaDelMes(tj.pago,an), d=diasEntre(hoy,f);
+  return {fecha:f, dias:d, vencido:d<0, hoy:d===0};
+}
 /* Cuántos días faltan para el corte y cuántos pasaron desde el anterior. Sirve
    para saber en qué corte cae una compra de hoy; ningún monto sale de acá. */
 function plazoDe(tj,hoy){
@@ -1165,6 +1204,33 @@ function norm(s){
   return t.replace(/[^a-z0-9ñ ]+/g," ").replace(/\s+/g," ").trim();
 }
 function clave(s){ return norm(s); }
+/* "Farmacias" y "Farmacia" son lo mismo. "Supermercados" y "Despensa", no: el
+   cruce es por el nombre, sin adivinar sinónimos. */
+function raizPal(s){
+  return clave(s).split(" ").map(function(w){ return w.replace(/(es|s)$/,""); }).join(" ");
+}
+function mismaCosa(a,b){ return raizPal(a)===raizPal(b) && raizPal(a)!==""; }
+/* EL RUBRO DEL BENEFICIO: el beneficio dice "Supermercados"; si hay un rubro del
+   presupuesto que se llame igual, se muestra cuánto le queda. Si no cruza, no se
+   muestra nada: no se inventa a qué rubro pertenece un beneficio. */
+function rubroBene(S,k,que,hoyIso){
+  if(!que) return null;
+  var rs=rubrosDe(S,k,hoyIso), i;
+  for(i=0;i<rs.length;i++) if(clave(rs[i].cat)===clave(que)) return rs[i];
+  for(i=0;i<rs.length;i++) if(mismaCosa(rs[i].cat,que)) return rs[i];
+  return null;
+}
+/* Los rubros que VOS marcaste para pagar con esta tarjeta (tjPref de la madre). */
+function rubrosPref(S,k,nombre,hoyIso){
+  var pref=(S&&S.tjPref)||{}, rs=rubrosDe(S,k,hoyIso), out=[];
+  Object.keys(pref).forEach(function(cat){
+    if(!mismoPago(pref[cat],nombre)) return;
+    var r=null;
+    for(var i=0;i<rs.length;i++) if(clave(rs[i].cat)===clave(cat)){ r=rs[i]; break; }
+    out.push(r || {cat:cat, presC:null, gastoC:0, quedaC:null, permPendC:0});
+  });
+  return out;
+}
 /* ---------- treemap cuadrado, a mano (squarified · Bruls-Huizing-van Wijk) ----
    Reparte un rectángulo en bloques de área proporcional al monto, armando
    franjas contra el lado corto y cerrando cada franja cuando meter un bloque
@@ -1234,16 +1300,16 @@ function nSig(c){ return c<0? " neg":""; }
 
 /* Explicaciones: se ven al tocar (o dejar el dedo) sobre el dato. */
 var EX={
-  singastar:["Saldo real · sin gastar","<code>ingresos − gastos</code> de esta ventana, solo con movimientos registrados.<br><br>Es el mismo número que la app madre muestra como <b>SALDO REAL</b>."],
+  singastar:["Saldo real · sin gastar","<code>ingresos − gastos</code> de este corte, solo con movimientos registrados.<br><br>Es el mismo número que la app madre muestra como <b>SALDO REAL</b>."],
   proy:["Proyección","<code>saldo real + ingreso por entrar − compromisos pendientes</code>.<br><br>Es el mismo <b>saldo libre proyectado</b> de la app madre: lo que queda después de ejecutar el presupuesto. No es dinero real y por eso va en su propio recuadro."],
-  rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de esta ventana."],
-  gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en esta ventana:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los permanentes de esta ventana que se pagan con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
-  anterior:["Corte anterior","Lo que gastaste con esta tarjeta en la ventana anterior, y si marcaste ese corte como pagado.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
-  cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de esta ventana − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app madre y se dice cuál se usó; sin tasa no se estima nada."],
+  rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de este corte."],
+  gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en este corte:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los pagos permanentes de este corte que se cobran con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
+  anterior:["Corte anterior","Lo que gastaste con esta tarjeta en el corte anterior, y si lo marcaste como pagado.<br><br>La fecha de vencimiento sale del día de pago de la libreta: es un recordatorio, no cambia ningún número.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
+  cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de este corte − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app madre y se dice cuál se usó; sin tasa no se estima nada."],
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
   cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
-  registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ninguna ventana."],
+  registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ningún corte."],
   estado:["De dónde viene lo que ves","EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
 };
 
@@ -1377,12 +1443,12 @@ function hojaProyeccion(k){
       (c.ahorroPend>0? '<div class="cot-n"><span class="sub">de los cuales, ahorro</span>'+
         '<b class="num sub">'+fmtC(c.ahorroPend)+'</b></div>':'')+
       '<div class="cot-n"><span><b>saldo libre proyectado</b></span><b class="num'+nSig(c.libre)+'">'+fmtC(c.libre,true)+'</b></div>'+
-      '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. Un gasto suelto no descuenta el permanente: cada permanente se descuenta solo cuando su movimiento existe.<br><br>El rubro de ahorro cuenta como compromiso mientras la ventana está viva: esa plata no está disponible.</div></div>'+
+      '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. Un gasto suelto no descuenta el permanente: cada permanente se descuenta solo cuando su movimiento existe.<br><br>El rubro de ahorro cuenta como compromiso mientras el corte está abierto: esa plata no está disponible.</div></div>'+
     '<div class="cot"><div class="cot-t">Ahorro al cerrar</div>'+
       '<div class="cot-n"><span>apartado al rubro '+esc(catAhorro(S))+'</span><b class="num">'+fmtC(ah.apartado)+'</b></div>'+
       '<div class="cot-n"><span>+ saldo real</span><b class="num'+nSig(ah.saldo)+'">'+fmtC(ah.saldo)+'</b></div>'+
       '<div class="cot-n"><span><b>ahorro real al cerrar</b></span><b class="num'+nSig(ah.total)+'">'+fmtC(ah.total,true)+'</b></div>'+
-      '<div class="cot-e">Al cerrar la ventana, lo que sobra del saldo también es ahorro. Es una proyección: cambia con cada movimiento.</div></div>'+
+      '<div class="cot-e">Al cerrar el corte, lo que sobra del saldo también es ahorro. Es una proyección: cambia con cada movimiento.</div></div>'+
     '<div class="cot"><div class="cot-t">Del ingreso esperado, sin repartir</div>'+
       '<div class="cot-n"><span>ingreso presupuestado</span><b class="num">'+fmtC(t.ing.plan)+'</b></div>'+
       '<div class="cot-n"><span>− presupuesto</span><b class="num">'+fmtC(t.egr.plan)+'</b></div>'+
@@ -1394,7 +1460,7 @@ function hojaProyeccion(k){
   h+='<div class="hsec">Compromisos pendientes ('+c.det.length+')</div>';
   h+= c.det.length? c.det.map(function(d){
       return '<div class="mv"><span class="d">'+esc(d.cat)+(d.ahorro?' <span class="sub">(ahorro)</span>':'')+
-        '<small>'+(d.porPerm>d.porPres? "manda el permanente sin marcar" :
+        '<small>'+(d.porPerm>d.porPres? "manda el permanente pendiente de pagar" :
                    (d.porPres>0? "presupuesto sin gastar" : "—"))+
         (d.porPerm>0? ' &middot; permanente '+fmtC(d.porPerm):'')+
         (d.porPres>0? ' &middot; presupuesto '+fmtC(d.porPres):'')+'</small></span>'+
@@ -1420,7 +1486,7 @@ function hojaRubro(cat){
         '<span class="d">'+esc(m.desc||"—")+
           ((m.pago||m.fx)? '<small>'+esc([m.pago,m.fx].filter(Boolean).join(" · "))+'</small>':'')+
         '</span><span class="m num">'+fmtC(cts(m.monto))+'</span></div>';
-    }).join("") : '<div class="vacio">Sin movimientos de este rubro en esta ventana.</div>';
+    }).join("") : '<div class="vacio">Sin movimientos de este rubro en este corte.</div>';
   abreHoja(h);
 }
 
@@ -1439,40 +1505,93 @@ function txtDesde(pl){
 }
 function txtBene(b,topeAparte){
   return (b.pct? b.pct+"% " : "")+(b.tipo==="descuento"?"de descuento":"de cashback")+
-    " en "+esc(b.que)+((!topeAparte && b.tope)? " (tope "+fmtC(cts(b.tope))+")" : "");
+    ((!topeAparte && b.tope)? " (tope "+fmtC(cts(b.tope))+")" : "");
 }
-/* El cupo de una tarjeta: límite real, límite actual (menos minicuotas) y
-   disponible. Si no hay límite anotado no se estima nada y se dice por qué. */
-function bloqueCupo(t,cu){
-  if(!cu.hay){
-    return '<div class="linea-det"><span data-acc="ex" data-ex="cupo">'+
-      (cu.lim.sinTasa? "límite en "+esc(cu.lim.mon)+" sin tasa para convertir &middot; no se estima el disponible"
-                     : "sin límite anotado en la libreta &middot; no se estima el disponible")+
-      '</span></div>';
-  }
-  var mini=cu.miniC>0, nm=cu.fin.mini.length;
-  return '<div class="tj-l" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
-    '<div><span class="et">Límite actual</span>'+
-      '<span class="vl num">'+fmtC(cu.limActC)+'</span>'+
-      '<span class="pie-est">'+
-        (mini? fmtC(cu.lim.c)+' de límite − '+fmtC(cu.miniC)+' en '+nm+' minicuota'+(nm===1?"":"s")
-             : fmtC(cu.lim.c)+' de límite &middot; sin minicuotas activas')+
-      '</span></div>'+
-    '<div><span class="et">Disponible</span>'+
-      '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+
-      '<span class="pie-est">'+
-        'menos '+fmtC(cu.consumoC)+' de esta ventana'+
-        (cu.arrastreC>0? ' y '+fmtC(cu.arrastreC)+' del corte anterior sin pagar' : '')+
-        ' &middot; ver cuentas'+
-      '</span></div>'+
-  '</div>'+
-  (cu.lim.mon!=="Lps"
-    ? '<div class="linea-det"><span>límite '+esc(cu.lim.mon)+' '+fmtC(cu.lim.origC).replace("L ","")+
-      ' &middot; a '+esc(String(cu.lim.tasa))+'</span></div>' : '')+
-  (cu.fin.sinDato.length
-    ? '<div class="linea-det"><span class="pend">'+cu.fin.sinDato.length+' minicuota'+
-      (cu.fin.sinDato.length===1?"":"s")+' sin datos de cuotas &middot; no se descuenta'+
-      (cu.fin.sinDato.length===1?"":"n")+' del límite</span></div>' : '');
+/* Lo que le queda al rubro del beneficio. Negativo = ese rubro ya se pasó del
+   presupuesto, y se dice con esa palabra en vez de con un signo menos. */
+function txtQueda(r){
+  if(!r.presC) return '<span class="d sin">sin presupuesto</span>';
+  return (r.quedaC<0)
+    ? '<span class="d neg">'+fmtC(-r.quedaC)+' excedido</span>'
+    : '<span class="d">'+fmtC(r.quedaC)+' libres</span>';
+}
+/* Una fila de beneficio: el rubro, qué da, y —si ese rubro está en el
+   presupuesto de este corte— cuánto le queda. Si el nombre no cruza con ningún
+   rubro, la fila va sin cifra: la app no adivina a qué rubro pertenece. */
+function filaBene(S,k,b,topeAparte){
+  var r=rubroBene(S,k,b.que,hoyISO());
+  return '<div class="bn'+(r?'" data-acc="bn" data-v="'+esc(r.cat):'')+'">'+
+    '<span class="q">'+esc(b.que||"—")+'</span>'+
+    '<span class="p">'+txtBene(b,topeAparte)+'</span>'+
+    (r? txtQueda(r) : '')+
+  '</div>';
+}
+function filaPref(r){
+  return '<div class="bn pref" data-acc="bn" data-v="'+esc(r.cat)+'">'+
+    '<span class="q">'+esc(r.cat)+'</span>'+
+    '<span class="p">la elegiste para este rubro</span>'+txtQueda(r)+'</div>';
+}
+/* El estado del corte anterior en un símbolo, no en una frase. La marca es a
+   mano en la app madre: sin marca, pendiente, aunque la fecha ya haya pasado. */
+function marcaPago(pagado){
+  return pagado
+    ? '<span class="mk ok" title="Marcado como pagado en la app madre.">&#10003; pagado</span>'
+    : '<span class="mk no" title="Sin marcar como pagado en la app madre. La marca es a mano: la fecha no la pone sola.">&#10005; sin pagar</span>';
+}
+function fmtD(d){
+  function dd(n){ return (n<10?"0":"")+n; }
+  return dd(d.getDate())+"/"+dd(d.getMonth()+1);
+}
+function txtVence(v){
+  if(!v) return "";
+  if(v.hoy) return "vence hoy";
+  if(v.vencido) return "venció el "+fmtD(v.fecha);
+  if(v.dias===1) return "vence mañana "+fmtD(v.fecha);
+  return "vence el "+fmtD(v.fecha)+" · faltan "+v.dias+" días";
+}
+/* Los beneficios con su rubro y lo que le queda a ese rubro, más los rubros que
+   vos elegiste pagar con esta tarjeta y que no salieron ya por beneficio. */
+function bloqueBenes(S,k,t){
+  var tope=topeTj(t), h="", vistos={};
+  (t.benes||[]).forEach(function(b){
+    h+=filaBene(S,k,b,tope.hay);
+    var r=rubroBene(S,k,b.que,hoyISO());
+    if(r) vistos[clave(r.cat)]=1;
+  });
+  rubrosPref(S,k,t.nombre,hoyISO()).forEach(function(r){
+    if(vistos[clave(r.cat)]) return;
+    vistos[clave(r.cat)]=1; h+=filaPref(r);
+  });
+  if(!h) return '<div class="bene sub">Sin beneficios anotados.</div>';
+  if(tope.hay) h+='<div class="bene sub" data-acc="ex" data-ex="tope">tope '+fmtC(tope.c)+
+    ' entre todos los beneficios</div>';
+  return h;
+}
+/* Los datos fríos de la tarjeta: los que se consultan, no los que se miran. */
+function pieTj(t,cu,pl){
+  var h='<div class="tj-f" data-acc="ex" data-ex="corte">'+
+    '<span>corta el '+esc(String(t.corte))+'</span>'+
+    '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
+    (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>';
+  if(!cu.hay)
+    return h+'<div class="tj-f" data-acc="ex" data-ex="cupo"><span>'+
+      (cu.lim.sinTasa? "límite en "+esc(cu.lim.mon)+" sin tasa para convertir"
+                     : "sin límite anotado")+'</span></div>';
+  h+='<div class="tj-f" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+      '<span>límite '+fmtC(cu.lim.c)+
+        (cu.lim.mon!=="Lps"? ' ('+esc(cu.lim.mon)+' '+fmtC(cu.lim.origC).replace("L ","")+
+          ' a '+esc(String(cu.lim.tasa))+')' : '')+'</span>'+
+      (cu.miniC>0
+        ? '<span>'+cu.fin.mini.length+' minicuota'+(cu.fin.mini.length===1?"":"s")+
+          ' toma'+(cu.fin.mini.length===1?"":"n")+' '+fmtC(cu.miniC)+', queda <b>'+
+          fmtC(cu.limActC)+'</b></span>'
+        : '<span>sin minicuotas</span>')+
+    '</div>';
+  if(cu.fin.sinDato.length)
+    h+='<div class="tj-f" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+      '<span class="pend">'+cu.fin.sinDato.length+' minicuota'+(cu.fin.sinDato.length===1?"":"s")+
+      ' sin cuotas cargadas: no se descuenta'+(cu.fin.sinDato.length===1?"":"n")+'</span></div>';
+  return h;
 }
 function vTarjetas(){
   var k=kAct(), tjs=tarjetasConCorte(S);
@@ -1480,47 +1599,87 @@ function vTarjetas(){
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
     var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
-    var ant=deudaAnterior(S,k,t), cu=cupoTjC(S,k,t,hoyISO()), tope=topeTj(t);
+    var ant=deudaAnterior(S,k,t), cu=cupoTjC(S,k,t,hoyISO()), v=vencePago(t,hoy());
+    var nPend=g.det.filter(function(x){ return !x.reg; }).length;
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
+      /* 1 · quién es y en cuánto corta */
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
-        '<span class="tj-c'+(urge?" urge":"")+'" data-acc="ex" data-ex="corte">'+esc(txtCorte(pl))+'</span></div>'+
-      '<div class="linea-det" data-acc="ex" data-ex="corte">'+
-        '<span>corta el '+esc(String(t.corte))+' de cada mes</span>'+
-        '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
-        (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>'+
-      '<div class="tj-g">'+
-        '<div data-acc="tj-gasto" data-v="'+esc(t.nombre)+'"><span class="et">Gasto real</span>'+
-          ((g.c===0 && !g.movC && !g.det.length)
-            ? '<span class="vl chico">sin movimientos en esta ventana &middot; ver por qué</span>'
-            : '<span class="vl num'+nSig(g.c)+'">'+fmtC(g.c)+'</span>'+
-              '<span class="pie-est">'+
-                (g.pendC>0
-                  ? fmtC(g.movC)+' registrados + '+fmtC(g.pendC)+' de '+g.det.filter(function(x){return !x.reg;}).length+
-                    ' permanente'+(g.det.filter(function(x){return !x.reg;}).length===1?"":"s")+' sin marcar &middot; ver detalle'
-                  : (g.det.length? 'todos sus permanentes ya están registrados &middot; ver detalle'
-                                 : 'solo movimientos &middot; ver detalle'))+
-              '</span>')+
-        '</div>'+
-        (ant? '<div data-acc="ex" data-ex="anterior">'+
-            '<span class="et">Corte anterior &middot; '+esc(nomVentana(ant.k))+'</span>'+
+        '<span class="tj-c'+(urge?" urge":"")+'" data-acc="ex" data-ex="corte">'+
+        esc(txtCorte(pl))+'</span></div>'+
+      /* 2 · cuánto queda de la tarjeta */
+      (cu.hay
+        ? '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+            '<span class="et">Disponible</span>'+
+            '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+
+            '<span class="pie-est">'+fmtC(cu.limActC)+' de límite − '+
+              fmtC(cu.consumoC)+' de este corte'+
+              (cu.arrastreC>0? ' − '+fmtC(cu.arrastreC)+' sin pagar' : '')+
+              ' &middot; ver cuentas</span>'+
+          '</div>'
+        : '')+
+      /* 3 · en qué conviene usarla, y cuánto queda de ese rubro */
+      bloqueBenes(S,k,t)+
+      /* 4 · lo que carga este corte */
+      '<div class="tj-g"><div data-acc="tj-gasto" data-v="'+esc(t.nombre)+'">'+
+        '<span class="et">Gasto de este corte</span>'+
+        ((g.c===0 && !g.movC && !g.det.length)
+          ? '<span class="vl chico">sin movimientos &middot; ver por qué</span>'
+          : '<span class="vl num'+nSig(g.c)+'">'+fmtC(g.c)+'</span>'+
+            '<span class="pie-est">'+
+              (g.pendC>0
+                ? fmtC(g.movC)+' registrados + '+fmtC(g.pendC)+' pendiente'+(nPend===1?"":"s")+' de pagar'
+                : (g.det.length? 'todo lo permanente ya está registrado' : 'solo movimientos'))+
+              ' &middot; ver detalle</span>')+
+      '</div></div>'+
+      /* 5 · el corte anterior, en una línea */
+      '<div class="tj-ant" data-acc="ex" data-ex="anterior">'+
+        (!ant
+          ? '<span class="e">Corte anterior</span><span class="x">no hay corte anterior</span>'
+          : '<span class="e">Corte anterior &middot; '+esc(nomVentana(ant.k))+'</span>'+
             (ant.c>0
-              ? '<span class="vl num">'+fmtC(ant.c)+'</span>'+
-                '<span class="pie-est'+(ant.pagado?"":" pend")+'">'+
-                  (ant.pagado? "marcado como pagado" : "sin marcar como pagado")+'</span>'
-              : '<span class="vl chico">sin consumo en esa ventana</span>')+'</div>'
-          : '<div><span class="et">Corte anterior</span>'+
-            '<span class="vl chico">no hay ventana anterior</span></div>')+
+              ? '<span class="v num">'+fmtC(ant.c)+'</span>'+marcaPago(ant.pagado)+
+                (v? '<span class="x'+((!ant.pagado&&(v.vencido||v.dias<=1))?" pend":"")+'">'+
+                    esc(txtVence(v))+'</span>' : '')+
+                (!ant.pagado&&v? '<button class="lnk" data-acc="tj-ics" data-v="'+esc(t.nombre)+
+                    '" title="Baja un archivo de calendario con aviso un día antes. Lo agrega tu celular, no la app.">recordarme</button>' : '')
+              : '<span class="x">sin consumo</span>'))+
       '</div>'+
-      bloqueCupo(t,cu)+
-      (t.benes&&t.benes.length? t.benes.map(function(b){
-          return '<div class="bene">&middot; '+txtBene(b,tope.hay)+'</div>'; }).join("")+
-          (tope.hay? '<div class="bene sub" data-acc="ex" data-ex="tope">tope '+fmtC(tope.c)+
-             ' para todos sus beneficios juntos, no uno por rubro</div>' : '')
-        : '<div class="bene sub">Sin beneficios anotados.</div>')+
+      /* 6 · los datos fríos */
+      pieTj(t,cu,pl)+
       '</div>';
   });
   return h+'</div>';
+}
+/* Un archivo de calendario con aviso un día antes. Se arma y se baja en el
+   aparato: no se manda a ningún lado, no escribe nada en la nube y no marca
+   nada como pagado. El recordatorio lo pone el calendario del celular. */
+function icsPago(t,ant,v){
+  function dd(n){ return (n<10?"0":"")+n; }
+  function f(d){ return d.getFullYear()+dd(d.getMonth()+1)+dd(d.getDate()); }
+  var ini=f(v.fecha), sig=f(new Date(v.fecha.getFullYear(),v.fecha.getMonth(),v.fecha.getDate()+1));
+  var uid="fin-"+clave(t.nombre).replace(/ /g,"-")+"-"+ini+"@finanzas";
+  var det="Corte "+nomVentana(ant.k)+": "+fmtC(ant.c)+
+          ". Al "+fmtD(hoy())+" no estaba marcado como pagado en la app.";
+  return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Finanzas//Consulta//ES","CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+ini+"T090000",
+    "DTSTART;VALUE=DATE:"+ini,"DTEND;VALUE=DATE:"+sig,
+    "SUMMARY:Pagar "+t.nombre,
+    "DESCRIPTION:"+det.replace(/\n/g,"\\n"),
+    "BEGIN:VALARM","TRIGGER:-P1D","ACTION:DISPLAY","DESCRIPTION:Mañana vence "+t.nombre,
+    "END:VALARM","END:VEVENT","END:VCALENDAR"].join("\r\n");
+}
+function bajaIcs(nombre){
+  var t=(S.tarjetas||[]).filter(function(x){ return mismoPago(x.nombre,nombre); })[0];
+  if(!t) return;
+  var k=kAct(), ant=deudaAnterior(S,k,t), v=vencePago(t,hoy());
+  if(!ant || !v){ toast("No hay fecha de pago anotada para esta tarjeta."); return; }
+  var b=new Blob([icsPago(t,ant,v)],{type:"text/calendar;charset=utf-8"});
+  var u=URL.createObjectURL(b), a=document.createElement("a");
+  a.href=u; a.download="pago-"+clave(t.nombre).replace(/ /g,"-")+".ics";
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(u); },4000);
+  toast("Se bajó el recordatorio. Abrilo para agregarlo a tu calendario.");
 }
 function hojaGastoTj(nombre){
   var k=kAct(), g=gastoTjTotal(S,k,nombre,hoyISO());
@@ -1529,18 +1688,18 @@ function hojaGastoTj(nombre){
   var h='<h3>'+esc(nombre)+'</h3>'+
     '<div class="hsub">'+esc(nomVentana(k))+' &middot; '+fmtC(g.c)+' en total</div>'+
     '<p class="sub">'+fmtC(g.movC)+' en movimientos registrados'+
-      (g.pendC>0? ' y '+fmtC(g.pendC)+' en permanentes que todavía no tienen movimiento.' : '.')+
+      (g.pendC>0? ' y '+fmtC(g.pendC)+' en pagos permanentes que todavía no tienen movimiento.' : '.')+
       ' Un permanente ya marcado no se suma aparte: su movimiento ya está contado.</p>';
   h+='<div class="hsec">Movimientos ('+ms.length+')</div>';
   h+= ms.length? ms.map(function(m){
       return '<div class="mv"><span class="f num">'+esc(fmtF(m.fecha))+'</span>'+
         '<span class="d">'+esc(m.desc||"—")+'<small>'+esc(m.cat||"Sin categoría")+'</small></span>'+
         '<span class="m num">'+fmtC(cts(m.monto))+'</span></div>'; }).join("")
-    : '<div class="vacio">Ninguno con esta tarjeta en esta ventana.</div>';
+    : '<div class="vacio">Ninguno con esta tarjeta en este corte.</div>';
   if(!ms.length){
     var us=formasUsadas(S,k);
     h+='<div class="nota" style="margin:10px 0">No hay ningún movimiento con esta forma de pago '+
-      'en esta ventana. Las que sí aparecen son: '+
+      'en este corte. Las que sí aparecen son: '+
       (us.length? us.map(function(u){ return esc(u.pago)+' ('+u.n+')'; }).join(", ")
                 : 'ninguna')+'. Si alguna es esta tarjeta escrita distinto, el nombre de la '+
       'libreta y el de la forma de pago tienen que coincidir en la app madre.</div>';
@@ -1548,7 +1707,7 @@ function hojaGastoTj(nombre){
   h+='<div class="hsec">Permanentes con esta tarjeta ('+g.det.length+')</div>';
   h+= g.det.length? g.det.map(function(d){
       return '<div class="mv"><span class="d">'+esc(d.desc)+
-        '<small>'+(d.reg? "ya registrado como movimiento" : "sin marcar · se suma arriba")+'</small></span>'+
+        '<small>'+(d.reg? "ya registrado como movimiento" : "pendiente de pagar · se suma arriba")+'</small></span>'+
         '<span class="m num'+(d.reg?" sub":"")+'">'+fmtC(d.c)+'</span></div>'; }).join("")
     : '<div class="vacio">Ninguno se paga con esta tarjeta.</div>';
   abreHoja(h);
@@ -1578,12 +1737,12 @@ function hojaCupoTj(nombre){
     ren("− minicuotas por pagar",cu.miniC,"res",
         cu.fin.mini.length? "cuota × cuotas que faltan, de "+cu.fin.mini.length+" minicuota"+(cu.fin.mini.length===1?"":"s") : "ninguna activa")+
     ren("Límite actual",cu.limActC,"tot","el cupo que el banco no tiene tomado")+
-    ren("− consumo de esta ventana",cu.consumoC,"res",
+    ren("− consumo de este corte",cu.consumoC,"res",
         fmtC(cu.gasto.movC)+" en movimientos"+
-        (cu.gasto.pendC>0? " + "+fmtC(cu.gasto.pendC)+" en permanentes sin marcar" : "")+
+        (cu.gasto.pendC>0? " + "+fmtC(cu.gasto.pendC)+" pendientes de pagar" : "")+
         (cu.fin.pendYaEnSaldoC>0? " − "+fmtC(cu.fin.pendYaEnSaldoC)+" de minicuota, que ya está arriba" : ""))+
     ren("− corte anterior",cu.arrastreC,"res",
-        !cu.hayAnterior? "no hay ventana anterior"
+        !cu.hayAnterior? "no hay corte anterior"
         : (cu.arrastrePagado? "marcado como pagado: no resta"
                             : "sin marcar como pagado: resta completo"))+
     ren("Disponible actual",cu.dispC,"tot fin","");
@@ -1599,7 +1758,7 @@ function hojaCupoTj(nombre){
         ? "cuota "+x.pagadas+" de "+x.total+" &middot; faltan "+x.restantes
         : "sin datos de cuotas";
       return '<div class="mv"><span class="d">'+esc(x.desc)+'<small>'+pie+
-        ' &middot; cuota '+fmtC(x.cuotaC)+(x.reg?" &middot; la de esta ventana ya está registrada":"")+
+        ' &middot; cuota '+fmtC(x.cuotaC)+(x.reg?" &middot; la de este corte ya está registrada":"")+
         '</small></span><span class="m num'+(cuenta?"":" sub")+'">'+
         (x.saldoC!=null? fmtC(x.saldoC) : "—")+'</span></div>';
     }).join("");
@@ -1621,8 +1780,8 @@ function hojaCupoTj(nombre){
 /* ---------- 4 · CIERRES ---------- */
 function vCierres(){
   var vs=ventanasOrd(S).slice().reverse();
-  if(!vs.length) return '<div class="caja"><div class="vacio">No hay ventanas.</div></div>';
-  var h='<div class="caja"><div class="caja-t"><h2>Cierre por ventana</h2><span class="sp"></span>'+
+  if(!vs.length) return '<div class="caja"><div class="vacio">No hay cortes.</div></div>';
+  var h='<div class="caja"><div class="caja-t"><h2>Cierre por corte</h2><span class="sp"></span>'+
     '<button class="lnk" data-acc="ex" data-ex="cierre">cómo se calcula</button></div>';
   vs.forEach(function(k){
     var c=cotejoC(S,k), so=sobroC(S,k);
@@ -1663,7 +1822,7 @@ function hojaPresuVentana(k){
   var rs=presuRubros(S,k), tot=totPresuC(S,k), gas=gastosC(S,k);
   var h='<h3>Presupuesto &middot; '+esc(nomVentana(k))+'</h3>'+
     '<div class="hsub">'+fmtC(tot)+' presupuestado &middot; '+fmtC(gas)+' gastado</div>'+
-    '<p class="sub">Es la suma de todos los rubros con importe asignado en esta ventana — '+
+    '<p class="sub">Es la suma de todos los rubros con importe asignado en este corte — '+
     'la misma cifra que la app madre muestra en <b>Presupuesto contra real → Gastos → presupuesto</b>. '+
     'Si algo no cuadra, la diferencia está en alguno de estos renglones.</p>';
   h+= rs.length? rs.map(function(r){
@@ -1672,12 +1831,12 @@ function hojaPresuVentana(k){
         '<span class="m num">'+fmtC(r.presC)+'</span></div>'; }).join("")+
       '<div class="mv"><span class="d"><b>Total</b></span>'+
         '<span class="m num"><b>'+fmtC(tot)+'</b></span></div>'
-    : '<div class="vacio">Esta ventana no tiene ningún rubro con presupuesto.</div>';
+    : '<div class="vacio">Este corte no tiene ningún rubro con presupuesto.</div>';
   abreHoja(h);
 }
 function mapaHTML(k){
   var rs=rubrosDe(S,k,hoyISO()).filter(function(r){ return r.gastoC>0; });
-  if(!rs.length) return '<div class="vacio">Sin gastos registrados en esta ventana.</div>';
+  if(!rs.length) return '<div class="vacio">Sin gastos registrados en este corte.</div>';
   var datos=rs.map(function(r){ return {nombre:r.cat, valor:r.gastoC}; });
   var bl=squarify(datos,100,85);
   var n=bl.length;
@@ -1824,6 +1983,8 @@ document.addEventListener("click", function(e){
   if(acc==="nota-forma"){ guardaNota(v); return; }
   if(acc==="tj-gasto"){ hojaGastoTj(v); return; }
   if(acc==="tj-cupo"){ hojaCupoTj(v); return; }
+  if(acc==="tj-ics"){ bajaIcs(v); return; }
+  if(acc==="bn"){ hojaRubro(v); return; }
   if(acc==="nota-borrar"){ pideBorrar(t,v); return; }
   if(acc==="nota-borrar-ok"){ borraNota(v); return; }
 }, false);
@@ -1892,7 +2053,7 @@ function pedirNombre(puedeCancelar){
    -----------------------------------------------------------------------------
    Un documento por nota en la colección "notas". El documento finanzas/estado
    no se toca jamás. Una nota es un recordatorio: no suma, no resta y no entra
-   en ningún total de ninguna ventana.
+   en ningún total de ningún corte.
 ============================================================================= */
 var NOTA={fecha:"",que:"",monto:"",pago:""};
 function leeCampo(id){ var e=document.getElementById(id); return e? e.value : ""; }

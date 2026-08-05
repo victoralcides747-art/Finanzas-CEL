@@ -383,7 +383,7 @@ function normaliza(x){
     t = (typeof t==="string") ? {nombre:t} : (t||{});
     return { id:t.id||("tj"+Math.random().toString(36).slice(2,8)), nombre:t.nombre||"",
       corte:(t.corte===0||t.corte)?+t.corte:null, pago:(t.pago===0||t.pago)?+t.pago:null,
-      limite:+t.limite||0, nota:t.nota||"",
+      limite:+t.limite||0, limMon:t.limMon||"Lps", tope:+t.tope||0, nota:t.nota||"",
       benes: Array.isArray(t.benes)? t.benes.map(function(b){
         return {que:(b&&b.que)||"", pct:(b&&+b.pct)||0, tope:(b&&+b.tope)||0,
                 tipo:(b&&b.tipo==="descuento")?"descuento":"cashback"};
@@ -738,21 +738,40 @@ function ingresoPendienteC(S,k){
   return {pendiente:tot, det:det};
 }
 function compromisoC(S,k,hoyIso){
-  var pend=0, det=[];
+  var pend=0, det=[], ca=catAhorro(S), res=0;
   rubrosDe(S,k,hoyIso).forEach(function(r){
-    var porPres=(r.presC==null)?0:Math.max(0, r.presC-r.gastoC);
+    /* Un rubro que solo recibe devoluciones tiene gasto NEGATIVO. Restar un
+       negativo inventaría un compromiso que no existe (presupuesto 0 y −279 de
+       reembolsos daba +279), así que el gasto se topa en cero SOLO para esta
+       cuenta. Para mostrar, el negativo se deja: es real. */
+    var g=Math.max(0, r.gastoC);
+    var porPres=(r.presC)? Math.max(0, r.presC-g) : 0;
     var porPerm=r.permPendC;
     var v=Math.max(porPres,porPerm);
-    if(v>0){ pend+=v; det.push({cat:r.cat, porPres:porPres, porPerm:porPerm, val:v}); }
+    if(v>0){
+      pend+=v;
+      det.push({cat:r.cat, porPres:porPres, porPerm:porPerm, val:v, ahorro:(r.cat===ca)});
+      if(r.cat===ca) res=v;
+    }
   });
-  var ca=catAhorro(S), res=0;
-  det=det.filter(function(d){ if(d.cat!==ca) return true; res=d.val; return false; });
-  pend-=res;
   det.sort(function(a,b){ return b.val-a.val; });
   var queda=saldoC(S,k), ip=ingresoPendienteC(S,k);
+  /* El rubro de ahorro cuenta como compromiso MIENTRAS la ventana está viva:
+     esa plata no está disponible. Al cerrar vuelve a ser ahorro. */
   var libre=queda+ip.pendiente-pend;
   return {pendiente:pend, det:det, ingPend:ip.pendiente, ingDet:ip.det,
-          reservaAhorro:res, sobrante:libre-res, libre:libre};
+          ahorroPend:res, libre:libre};
+}
+/* Al cerrar la ventana, el ahorro de verdad es lo que ya apartaste al rubro de
+   ahorro más lo que sobre del saldo. */
+function apartadoAhorroC(S,k){
+  var ca=catAhorro(S), c=0;
+  movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===ca) c+=cts(m.monto); });
+  return c;
+}
+function ahorroAlCerrarC(S,k){
+  var ap=apartadoAhorroC(S,k), sal=saldoC(S,k);
+  return {apartado:ap, saldo:sal, total:ap+sal};
 }
 function gastoCatC(S,k,cat){ var c=0;
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===cat) c+=cts(m.monto); }); return c; }
@@ -843,11 +862,38 @@ function plazoDe(tj,hoy){
   r.corte=ca; r.hastaCorte=diasEntre(hoy,ca); r.desdeCorte=diasEntre(an,hoy);
   return r;
 }
+/* EL LÍMITE TIENE MONEDA.
+   tarjetas[].limite se guarda tal cual, en la moneda de tarjetas[].limMon, y
+   NO viene convertido. El gasto siempre está en lempiras, así que para
+   compararlos hay que convertir el límite al mostrar, y decir con qué tasa.
+   Sin limMon se asume Lps. Sin tasa para esa moneda, no se estima nada. */
+function tasaFx(S,mon){
+  if(!mon || mon==="Lps" || mon==="HNL" || mon==="L") return 1;
+  var v=(S&&S.fx)? +S.fx[mon] : 0;
+  return (v>0)? v : 0;
+}
+function limiteLpsC(S,tj){
+  var lim=cts(tj.limite), mon=tj.limMon||"Lps";
+  if(!(lim>0)) return {hay:false, c:0, mon:mon, tasa:1, origC:0, sinTasa:false};
+  var t=tasaFx(S,mon);
+  if(!(t>0)) return {hay:false, c:0, mon:mon, tasa:0, origC:lim, sinTasa:true};
+  return {hay:true, c:Math.round(lim*t), mon:mon, tasa:t, origC:lim, sinTasa:false};
+}
 /* Cupo: ESTIMADO de esta ventana. Ignora cualquier saldo anterior no pagado. */
 function dispEstC(S,k,tj){
-  var lim=cts(tj.limite);
-  if(!(lim>0)) return {hay:false, c:0};
-  return {hay:true, c:lim-gastoTarjetaC(S,k,tj.nombre)};
+  var L=limiteLpsC(S,tj);
+  if(!L.hay) return {hay:false, c:0, lim:L};
+  return {hay:true, c:L.c-gastoTarjetaC(S,k,tj.nombre), lim:L};
+}
+/* EL TOPE ES UNO POR TARJETA, no uno por rubro: si da 7% en supermercados y 7%
+   en farmacias, los dos acumulan contra el mismo tope. Los datos viejos traían
+   un tope dentro de cada beneficio; si la tarjeta todavía no tiene el suyo, se
+   muestran como estaban y no se suman. */
+function topeTj(tj){
+  var t=cts(tj.tope);
+  if(t>0) return {hay:true, c:t, porBene:false};
+  var hayViejo=(tj.benes||[]).some(function(b){ return +b.tope>0; });
+  return {hay:false, c:0, porBene:hayViejo};
 }
 /* =============================================================================
    LO QUE CARGA UNA TARJETA EN ESTA VENTANA
@@ -1038,7 +1084,8 @@ var EX={
   rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de esta ventana."],
   gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en esta ventana:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los permanentes de esta ventana que se pagan con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
   anterior:["Corte anterior","Lo que gastaste con esta tarjeta en la ventana anterior, y si marcaste ese corte como pagado.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
-  disp:["Disponible estimado","<code>límite − gasto real de esta ventana</code>.<br><br>Es una estimación de ESTA ventana. No es el saldo del banco: no incluye lo que se deba del corte anterior."],
+  disp:["Disponible estimado","<code>límite − gasto real de esta ventana</code>.<br><br>Es una estimación de ESTA ventana. No es el saldo del banco: no incluye lo que se deba del corte anterior.<br><br>Si el límite está en otra moneda, se convierte a lempiras con la tasa de la app madre y se dice cuál se usó; el límite guardado no se toca."],
+  tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
   cierre:["Cierre de ventana","<code>presupuestado − gastado</code>. Se calcula al vuelo cada vez que abrís la app: si la madre corrige un movimiento, esto cambia solo. No hay nada guardado."],
   registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ninguna ventana."],
@@ -1165,25 +1212,33 @@ function vRubros(){
   return h;
 }
 function hojaProyeccion(k){
-  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k);
+  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k), ah=ahorroAlCerrarC(S,k);
   var h='<h3>Proyección &middot; '+esc(nomVentana(k))+'</h3>'+
     '<div class="hsub">fuera del saldo real &middot; las mismas cifras de la app madre</div>'+
     '<div class="cot"><div class="cot-t">Saldo libre proyectado</div>'+
       '<div class="cot-n"><span>saldo real</span><b class="num">'+fmtC(saldoC(S,k))+'</b></div>'+
       (c.ingPend>0? '<div class="cot-n"><span>+ ingreso por entrar</span><b class="num">'+fmtC(c.ingPend)+'</b></div>':'')+
       '<div class="cot-n"><span>− compromisos pendientes</span><b class="num">'+fmtC(c.pendiente)+'</b></div>'+
+      (c.ahorroPend>0? '<div class="cot-n"><span class="sub">de los cuales, ahorro</span>'+
+        '<b class="num sub">'+fmtC(c.ahorroPend)+'</b></div>':'')+
       '<div class="cot-n"><span><b>saldo libre proyectado</b></span><b class="num'+nSig(c.libre)+'">'+fmtC(c.libre,true)+'</b></div>'+
-      '<div class="cot-n"><span>ahorro presupuestado</span><b class="num">'+fmtC(c.reservaAhorro)+'</b></div>'+
-      '<div class="cot-n"><span><b>sobrante sin asignar</b></span><b class="num'+nSig(c.sobrante)+'">'+fmtC(c.sobrante,true)+'</b></div>'+
-      '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. El rubro de ahorro no es compromiso: esa plata no sale, se guarda.</div></div>'+
-    '<div class="cot"><div class="cot-t">Sin presupuestar</div>'+
+      '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. Un gasto suelto no descuenta el permanente: cada permanente se descuenta solo cuando su movimiento existe.<br><br>El rubro de ahorro cuenta como compromiso mientras la ventana está viva: esa plata no está disponible.</div></div>'+
+    '<div class="cot"><div class="cot-t">Ahorro al cerrar</div>'+
+      '<div class="cot-n"><span>apartado al rubro '+esc(catAhorro(S))+'</span><b class="num">'+fmtC(ah.apartado)+'</b></div>'+
+      '<div class="cot-n"><span>+ saldo real</span><b class="num'+nSig(ah.saldo)+'">'+fmtC(ah.saldo)+'</b></div>'+
+      '<div class="cot-n"><span><b>ahorro real al cerrar</b></span><b class="num'+nSig(ah.total)+'">'+fmtC(ah.total,true)+'</b></div>'+
+      '<div class="cot-e">Al cerrar la ventana, lo que sobra del saldo también es ahorro. Es una proyección: cambia con cada movimiento.</div></div>'+
+    '<div class="cot"><div class="cot-t">Del ingreso esperado, sin repartir</div>'+
       '<div class="cot-n"><span>ingreso presupuestado</span><b class="num">'+fmtC(t.ing.plan)+'</b></div>'+
       '<div class="cot-n"><span>− presupuesto</span><b class="num">'+fmtC(t.egr.plan)+'</b></div>'+
-      '<div class="cot-n"><span><b>margen sin asignar</b></span><b class="num'+nSig(t.res.plan)+'">'+fmtC(t.res.plan,true)+'</b></div>'+
-      '<div class="cot-e">Es el «saldo · presupuesto» de la app madre. Ojo: no es lo mismo que el sobrante sin asignar de arriba — este compara lo que esperás que entre contra lo que repartiste; aquel parte del saldo real y de lo que ya está comprometido.</div></div>';
+      '<div class="cot-n"><span><b>sin repartir</b></span><b class="num'+nSig(t.res.plan)+'">'+fmtC(t.res.plan,true)+'</b></div>'+
+      '<div class="cot-e">Compara dos planes y no mira ni un movimiento: del ingreso que esperás, cuánto no le asignaste a ningún rubro. '+
+      'En la app madre es el «saldo &middot; presupuesto» de Presupuesto contra real.<br><br>'+
+      '<b>No es el sobrante sin asignar de arriba.</b> Aquel parte del dinero que ya tenés y le resta lo que ya está comprometido; '+
+      'este parte del dinero que todavía esperás. Sirven para cosas distintas: este, para armar el presupuesto; aquel, para saber con cuánto te quedás.</div></div>';
   h+='<div class="hsec">Compromisos pendientes ('+c.det.length+')</div>';
   h+= c.det.length? c.det.map(function(d){
-      return '<div class="mv"><span class="d">'+esc(d.cat)+
+      return '<div class="mv"><span class="d">'+esc(d.cat)+(d.ahorro?' <span class="sub">(ahorro)</span>':'')+
         '<small>'+(d.porPerm>d.porPres? "manda el permanente sin marcar" :
                    (d.porPres>0? "presupuesto sin gastar" : "—"))+
         (d.porPerm>0? ' &middot; permanente '+fmtC(d.porPerm):'')+
@@ -1227,9 +1282,9 @@ function txtDesde(pl){
   if(pl.desdeCorte===1) return "cortó ayer";
   return "cortó hace "+pl.desdeCorte+" días";
 }
-function txtBene(b){
+function txtBene(b,topeAparte){
   return (b.pct? b.pct+"% " : "")+(b.tipo==="descuento"?"de descuento":"de cashback")+
-    " en "+esc(b.que)+(b.tope? " (tope "+fmtC(cts(b.tope))+")" : "");
+    " en "+esc(b.que)+((!topeAparte && b.tope)? " (tope "+fmtC(cts(b.tope))+")" : "");
 }
 function vTarjetas(){
   var k=kAct(), tjs=tarjetasConCorte(S);
@@ -1237,7 +1292,7 @@ function vTarjetas(){
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
     var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
-    var ant=deudaAnterior(S,k,t), de=dispEstC(S,k,t);
+    var ant=deudaAnterior(S,k,t), de=dispEstC(S,k,t), tope=topeTj(t);
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
@@ -1265,11 +1320,18 @@ function vTarjetas(){
           : '<div><span class="et">Corte anterior</span>'+
             '<span class="vl chico">no hay ventana anterior</span></div>')+
       '</div>'+
-      '<div class="linea-det">'+
-        '<span data-acc="ex" data-ex="disp">'+(de.hay? "disponible estimado "+fmtC(de.c)
-          : "sin límite anotado")+'</span></div>'+
+      '<div class="linea-det"><span data-acc="ex" data-ex="disp">'+
+        (de.hay? "disponible estimado "+fmtC(de.c)
+               : (de.lim.sinTasa? "límite en "+esc(de.lim.mon)+" sin tasa para convertir"
+                                : "sin límite anotado"))+'</span>'+
+        (de.hay && de.lim.mon!=="Lps"
+          ? '<span>límite '+esc(de.lim.mon)+' '+fmtC(de.lim.origC).replace("L ","")+
+            ' &middot; a '+esc(String(de.lim.tasa))+'</span>' : '')+
+      '</div>'+
       (t.benes&&t.benes.length? t.benes.map(function(b){
-          return '<div class="bene">&middot; '+txtBene(b)+'</div>'; }).join("")
+          return '<div class="bene">&middot; '+txtBene(b,tope.hay)+'</div>'; }).join("")+
+          (tope.hay? '<div class="bene sub" data-acc="ex" data-ex="tope">tope '+fmtC(tope.c)+
+             ' para todos sus beneficios juntos, no uno por rubro</div>' : '')
         : '<div class="bene sub">Sin beneficios anotados.</div>')+
       '</div>';
   });

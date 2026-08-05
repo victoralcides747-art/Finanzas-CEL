@@ -165,6 +165,28 @@ main{padding:10px 12px 20px}
 .tj-c.urge{color:var(--avi-tx);font-weight:650}
 .tj-g .pie-est{width:100%;font-size:14.5px;color:var(--tx2);margin-top:2px}
 .tj-g .pie-est.pend{color:var(--avi-tx);font-weight:600}
+/* cupo: límite actual y disponible. Mismo lenguaje de color que los rubros —
+   lo que todavía queda, en verde. */
+.tj-l{margin-top:12px;display:flex;gap:0 16px;flex-wrap:wrap}
+.tj-l>div{flex:1 1 46%;min-width:0;padding:8px 0 9px;
+  border-top:1px solid var(--tj-ln,var(--linea2));container-type:inline-size}
+.tj-l .et{display:block;font-size:14px;color:var(--tx2);text-transform:uppercase;letter-spacing:.02em}
+.tj-l .vl{display:block;font-size:clamp(20px,13.5cqw,30px);font-weight:650;letter-spacing:-.6px;margin-top:2px}
+.tj-l .vl.disp{color:var(--ok-tx)}
+.tj-l .vl.disp.neg{color:var(--mal-tx)}
+.tj-l .pie-est{display:block;font-size:14.5px;color:var(--tx2);margin-top:3px}
+.linea-det .pend{color:var(--avi-tx);font-weight:600}
+/* la cuenta del cupo, renglón por renglón */
+.cta{display:flex;align-items:baseline;gap:10px;padding:7px 0;
+  border-bottom:1px solid var(--linea2)}
+.cta .e{flex:1 1 auto;min-width:0;font-size:16.5px}
+.cta .e small{display:block;font-size:14px;color:var(--tx2);margin-top:1px}
+.cta .v{font-size:19px;font-weight:600;white-space:nowrap}
+.cta.res .v{color:var(--gasto-tx)}
+.cta.tot{border-bottom:0;border-top:2px solid var(--linea);margin-top:2px}
+.cta.tot .e{font-weight:650}
+.cta.tot .v{font-size:22px;font-weight:700}
+.cta.tot.fin .v{color:var(--ok-tx)}
 .formas{display:flex;flex-wrap:wrap;gap:9px;margin:2px 0}
 .formas button{flex:1 1 44%;min-width:0;background:var(--card2);border:1px solid var(--linea);
   border-radius:11px;padding:15px 12px;font-size:17.5px;color:var(--tx);cursor:pointer;
@@ -895,11 +917,114 @@ function limiteLpsC(S,tj){
   if(!(t>0)) return {hay:false, c:0, mon:mon, tasa:0, origC:lim, sinTasa:true};
   return {hay:true, c:Math.round(lim*t), mon:mon, tasa:t, origC:lim, sinTasa:false};
 }
-/* Cupo: ESTIMADO de esta ventana. Ignora cualquier saldo anterior no pagado. */
-function dispEstC(S,k,tj){
-  var L=limiteLpsC(S,tj);
-  if(!L.hay) return {hay:false, c:0, lim:L};
-  return {hay:true, c:L.c-gastoTarjetaC(S,k,tj.nombre), lim:L};
+/* =============================================================================
+   FINANCIAMIENTOS DE UNA TARJETA  ·  minicuotas contra extrafinanciamiento
+   -----------------------------------------------------------------------------
+   En la app madre un financiamiento es un PERMANENTE con cat "Financiamiento".
+   El banco escribe en la descripción de qué tipo es y por dónde va:
+       "PROMOCION MINICUOTAS 12M CUOTA:09/12"   →  minicuota, 9 de 12
+       "EXT18CUOTA: 10/"                        →  extrafinanciamiento, 10 de 18
+   `leeCuotas` y `finCuotas` son copia de la madre: el conteo de cuotas pagadas
+   NO sale del calendario, sale del ancla que él declaró más los movimientos
+   que la app registró ligados a ese permanente.
+
+   Al límite de la tarjeta solo le restamos las MINICUOTAS, que es lo que él
+   pidió. El extrafinanciamiento se muestra aparte, informativo, sin tocar
+   ninguna cifra.
+============================================================================= */
+var CAT_FIN="Financiamiento";
+function esFinan(f){ return clave(f&&f.cat)===clave(CAT_FIN); }
+/* Minicuota o extrafinanciamiento, según lo que escribe el banco. Si no lo dice,
+   queda "otro" y NO se descuenta de nada: la app no adivina. */
+function claseFin(f){
+  if(!esFinan(f)) return null;
+  var t=String(f.desc||"").toUpperCase();
+  try{ t=t.normalize("NFD").replace(new RegExp("[\\u0300-\\u036f]","g"),""); }catch(e){}
+  if(/MINI\s*-?\s*CUOTA/.test(t)) return "mini";
+  if(/EXTRA\s*FINANCIAM/.test(t) || /\bEXT\s*\d/.test(t) || /\bEXT\b/.test(t)) return "ext";
+  return "otro";
+}
+/* copia de la madre */
+function leeCuotas(desc){
+  var t=String(desc||"").toUpperCase(), m, r=null;
+  if(m=t.match(/EXT\s*(\d{1,3})\s*M?\s*CUOTA[:\s]*(\d{1,3})/))      r={actual:+m[2], total:+m[1]};
+  else if(m=t.match(/(\d{1,3})\s*M\b[\s\S]*?CUOTA[:\s]*(\d{1,3})/)) r={actual:+m[2], total:+m[1]};
+  else if(m=t.match(/CUOTA[:\s]*(\d{1,3})\s*\/\s*(\d{1,3})\b/))     r={actual:+m[1], total:+m[2]};
+  if(!r) return null;
+  if(r.total>0 && r.actual>r.total) r.total=0;
+  return r;
+}
+function cuotasRegistradas(S,f){
+  var n=0;
+  (S.movimientos||[]).forEach(function(m){ if(m.permId===f.id) n++; });
+  return n;
+}
+function finCuotas(S,f){
+  var lee=leeCuotas(f.desc)||{};
+  var tot=+f.cuotasTotal||lee.total||0; if(!(tot>0)) tot=null;
+  var reg=cuotasRegistradas(S,f), ancla=0, base=0, deTexto=false;
+  if(+f.cuotasAncla>0){ ancla=+f.cuotasAncla; base=+f.cuotasAnclaReg||0; }
+  else if(+f.cuotaActual>0){ ancla=+f.cuotaActual; base=Math.min(reg,1); }
+  else if(lee.actual>0){ ancla=lee.actual; base=Math.min(reg,1); deTexto=true; }
+  var pag=ancla+Math.max(0,reg-base);
+  if(tot!=null && pag>tot) pag=tot;
+  return {total:tot, pagadas:(ancla?pag:null), registradas:reg, ancla:ancla, deTexto:deTexto,
+          restantes:(tot!=null&&ancla)? Math.max(0,tot-pag) : null};
+}
+/* Lo que esta tarjeta tiene tomado en financiamientos.
+   saldo = cuota × cuotas que faltan. Si no se sabe cuántas faltan, NO se estima:
+   ese financiamiento queda listado aparte como "sin datos de cuotas". */
+function finTarjeta(S,k,nombre,hoyIso){
+  var r={miniC:0, mini:[], ext:[], otro:[], sinDato:[], pendYaEnSaldoC:0};
+  permsK(S,k).forEach(function(f){
+    if(!f || f.activo===false) return;
+    if((f.tipo||"Egreso")!=="Egreso") return;
+    if(!(cts(f.monto)>0)) return;
+    if(!mismoPago(f.pago,nombre)) return;
+    if(!esFinan(f)) return;
+    var cl=claseFin(f), fc=finCuotas(S,f), cuota=cts(f.monto);
+    var reg=!!movDePerm(S,k,f.id);
+    var it={desc:f.desc||f.cat||"financiamiento", cuotaC:cuota, clase:cl, reg:reg,
+            total:fc.total, pagadas:fc.pagadas, restantes:fc.restantes,
+            saldoC:(fc.restantes!=null)? cuota*fc.restantes : null};
+    if(cl==="mini"){
+      if(it.saldoC!=null){
+        r.miniC+=it.saldoC; r.mini.push(it);
+        /* La cuota de esta ventana que todavía no tiene movimiento ya va dentro
+           del saldo de arriba. Si además la contáramos como gasto pendiente de
+           la tarjeta, sería el mismo dinero dos veces. */
+        if(!reg && permToca(S,f,hoyIso)) r.pendYaEnSaldoC+=cuota;
+      }else r.sinDato.push(it);
+    }
+    else if(cl==="ext") r.ext.push(it);
+    else r.otro.push(it);
+  });
+  return r;
+}
+/* =============================================================================
+   CUPO REAL DE LA TARJETA
+       límite real      = el límite de la libreta, convertido a lempiras
+       − minicuotas     = cuota × cuotas que faltan, de cada minicuota de la tarjeta
+       = límite actual
+       − consumo de esta ventana (movimientos + permanentes sin marcar, menos las
+         cuotas de minicuota que ya están dentro del saldo de arriba)
+       − corte anterior, SOLO si no está marcado como pagado
+       = disponible actual
+   Nada de esto sale del calendario: el corte anterior pesa mientras la marca de
+   pagado no exista, aunque la fecha ya haya pasado.
+============================================================================= */
+function cupoTjC(S,k,tj,hoyIso){
+  var L=limiteLpsC(S,tj), fin=finTarjeta(S,k,tj.nombre,hoyIso);
+  var g=gastoTjTotal(S,k,tj.nombre,hoyIso);
+  var consumo=g.c-fin.pendYaEnSaldoC;
+  var ant=deudaAnterior(S,k,tj);
+  var arr=(ant && !ant.pagado)? Math.max(0,ant.c) : 0;
+  var limAct=L.c-fin.miniC;
+  return {hay:L.hay, lim:L, fin:fin, gasto:g,
+          miniC:fin.miniC, limActC:limAct, consumoC:consumo,
+          arrastreC:arr, arrastreK:ant?ant.k:null,
+          arrastrePagado:ant?!!ant.pagado:null, hayAnterior:!!ant,
+          dispC:limAct-consumo-arr};
 }
 /* EL TOPE ES UNO POR TARJETA, no uno por rubro: si da 7% en supermercados y 7%
    en farmacias, los dos acumulan contra el mismo tope. Los datos viejos traían
@@ -1114,7 +1239,7 @@ var EX={
   rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de esta ventana."],
   gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en esta ventana:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los permanentes de esta ventana que se pagan con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
   anterior:["Corte anterior","Lo que gastaste con esta tarjeta en la ventana anterior, y si marcaste ese corte como pagado.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
-  disp:["Disponible estimado","<code>límite − gasto real de esta ventana</code>.<br><br>Es una estimación de ESTA ventana. No es el saldo del banco: no incluye lo que se deba del corte anterior.<br><br>Si el límite está en otra moneda, se convierte a lempiras con la tasa de la app madre y se dice cuál se usó; el límite guardado no se toca."],
+  cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de esta ventana − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app madre y se dice cuál se usó; sin tasa no se estima nada."],
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
   cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
@@ -1316,13 +1441,46 @@ function txtBene(b,topeAparte){
   return (b.pct? b.pct+"% " : "")+(b.tipo==="descuento"?"de descuento":"de cashback")+
     " en "+esc(b.que)+((!topeAparte && b.tope)? " (tope "+fmtC(cts(b.tope))+")" : "");
 }
+/* El cupo de una tarjeta: límite real, límite actual (menos minicuotas) y
+   disponible. Si no hay límite anotado no se estima nada y se dice por qué. */
+function bloqueCupo(t,cu){
+  if(!cu.hay){
+    return '<div class="linea-det"><span data-acc="ex" data-ex="cupo">'+
+      (cu.lim.sinTasa? "límite en "+esc(cu.lim.mon)+" sin tasa para convertir &middot; no se estima el disponible"
+                     : "sin límite anotado en la libreta &middot; no se estima el disponible")+
+      '</span></div>';
+  }
+  var mini=cu.miniC>0, nm=cu.fin.mini.length;
+  return '<div class="tj-l" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+    '<div><span class="et">Límite actual</span>'+
+      '<span class="vl num">'+fmtC(cu.limActC)+'</span>'+
+      '<span class="pie-est">'+
+        (mini? fmtC(cu.lim.c)+' de límite − '+fmtC(cu.miniC)+' en '+nm+' minicuota'+(nm===1?"":"s")
+             : fmtC(cu.lim.c)+' de límite &middot; sin minicuotas activas')+
+      '</span></div>'+
+    '<div><span class="et">Disponible</span>'+
+      '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+
+      '<span class="pie-est">'+
+        'menos '+fmtC(cu.consumoC)+' de esta ventana'+
+        (cu.arrastreC>0? ' y '+fmtC(cu.arrastreC)+' del corte anterior sin pagar' : '')+
+        ' &middot; ver cuentas'+
+      '</span></div>'+
+  '</div>'+
+  (cu.lim.mon!=="Lps"
+    ? '<div class="linea-det"><span>límite '+esc(cu.lim.mon)+' '+fmtC(cu.lim.origC).replace("L ","")+
+      ' &middot; a '+esc(String(cu.lim.tasa))+'</span></div>' : '')+
+  (cu.fin.sinDato.length
+    ? '<div class="linea-det"><span class="pend">'+cu.fin.sinDato.length+' minicuota'+
+      (cu.fin.sinDato.length===1?"":"s")+' sin datos de cuotas &middot; no se descuenta'+
+      (cu.fin.sinDato.length===1?"":"n")+' del límite</span></div>' : '');
+}
 function vTarjetas(){
   var k=kAct(), tjs=tarjetasConCorte(S);
   if(!tjs.length) return '<div class="caja"><div class="vacio">No hay tarjetas con corte anotado en la libreta de la app madre.</div></div>';
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
     var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
-    var ant=deudaAnterior(S,k,t), de=dispEstC(S,k,t), tope=topeTj(t);
+    var ant=deudaAnterior(S,k,t), cu=cupoTjC(S,k,t,hoyISO()), tope=topeTj(t);
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
@@ -1354,14 +1512,7 @@ function vTarjetas(){
           : '<div><span class="et">Corte anterior</span>'+
             '<span class="vl chico">no hay ventana anterior</span></div>')+
       '</div>'+
-      '<div class="linea-det"><span data-acc="ex" data-ex="disp">'+
-        (de.hay? "disponible estimado "+fmtC(de.c)+" · límite menos lo registrado"
-               : (de.lim.sinTasa? "límite en "+esc(de.lim.mon)+" sin tasa para convertir"
-                                : "sin límite anotado"))+'</span>'+
-        (de.hay && de.lim.mon!=="Lps"
-          ? '<span>límite '+esc(de.lim.mon)+' '+fmtC(de.lim.origC).replace("L ","")+
-            ' &middot; a '+esc(String(de.lim.tasa))+'</span>' : '')+
-      '</div>'+
+      bloqueCupo(t,cu)+
       (t.benes&&t.benes.length? t.benes.map(function(b){
           return '<div class="bene">&middot; '+txtBene(b,tope.hay)+'</div>'; }).join("")+
           (tope.hay? '<div class="bene sub" data-acc="ex" data-ex="tope">tope '+fmtC(tope.c)+
@@ -1400,6 +1551,70 @@ function hojaGastoTj(nombre){
         '<small>'+(d.reg? "ya registrado como movimiento" : "sin marcar · se suma arriba")+'</small></span>'+
         '<span class="m num'+(d.reg?" sub":"")+'">'+fmtC(d.c)+'</span></div>'; }).join("")
     : '<div class="vacio">Ninguno se paga con esta tarjeta.</div>';
+  abreHoja(h);
+}
+
+/* La cuenta del cupo, renglón por renglón, con el detalle de cada minicuota. */
+function hojaCupoTj(nombre){
+  var k=kAct(), tj=(S.tarjetas||[]).filter(function(x){ return mismoPago(x.nombre,nombre); })[0];
+  if(!tj){ abreHoja('<h3>'+esc(nombre)+'</h3><div class="vacio">No está en la libreta.</div>'); return; }
+  var cu=cupoTjC(S,k,tj,hoyISO());
+  function ren(et,c,cls,pie){
+    return '<div class="cta'+(cls?" "+cls:"")+'"><span class="e">'+et+
+      (pie?'<small>'+pie+'</small>':'')+'</span><span class="v num">'+fmtC(c)+'</span></div>';
+  }
+  var h='<h3>'+esc(tj.nombre)+' &middot; cupo</h3>'+
+    '<div class="hsub">'+esc(nomVentana(k))+'</div>';
+  if(!cu.hay){
+    h+='<div class="nota">'+(cu.lim.sinTasa
+      ? 'El límite está anotado en '+esc(cu.lim.mon)+' y la app madre no tiene tasa para esa moneda, '+
+        'así que no se convierte a lempiras. Sin eso no se puede estimar el disponible: no se inventa una tasa.'
+      : 'Esta tarjeta no tiene límite anotado en la libreta de la app madre. Sin límite no hay disponible que calcular.')+
+      '</div>';
+    abreHoja(h); return;
+  }
+  h+=ren("Límite de la tarjeta",cu.lim.c,"",
+        cu.lim.mon!=="Lps"? esc(cu.lim.mon)+" "+fmtC(cu.lim.origC).replace("L ","")+" a "+esc(String(cu.lim.tasa)) : "de la libreta")+
+    ren("− minicuotas por pagar",cu.miniC,"res",
+        cu.fin.mini.length? "cuota × cuotas que faltan, de "+cu.fin.mini.length+" minicuota"+(cu.fin.mini.length===1?"":"s") : "ninguna activa")+
+    ren("Límite actual",cu.limActC,"tot","el cupo que el banco no tiene tomado")+
+    ren("− consumo de esta ventana",cu.consumoC,"res",
+        fmtC(cu.gasto.movC)+" en movimientos"+
+        (cu.gasto.pendC>0? " + "+fmtC(cu.gasto.pendC)+" en permanentes sin marcar" : "")+
+        (cu.fin.pendYaEnSaldoC>0? " − "+fmtC(cu.fin.pendYaEnSaldoC)+" de minicuota, que ya está arriba" : ""))+
+    ren("− corte anterior",cu.arrastreC,"res",
+        !cu.hayAnterior? "no hay ventana anterior"
+        : (cu.arrastrePagado? "marcado como pagado: no resta"
+                            : "sin marcar como pagado: resta completo"))+
+    ren("Disponible actual",cu.dispC,"tot fin","");
+  if(cu.dispC<0) h+='<div class="nota">Negativo: entre lo financiado y lo consumido ya se pasó del límite anotado.</div>';
+  h+='<p class="sub">El corte anterior pesa mientras no esté marcado como pagado en la app madre, '+
+    'aunque la fecha de pago ya haya pasado: la app no da por hecho un pago que no está registrado. '+
+    'Cada cuota de minicuota se descuenta del saldo cuando su movimiento existe, no cuando llega el mes.</p>';
+  function lista(arr,tit,vacio,cuenta){
+    var s='<div class="hsec">'+tit+' ('+arr.length+')</div>';
+    if(!arr.length) return s+'<div class="vacio">'+vacio+'</div>';
+    return s+arr.map(function(x){
+      var pie=(x.total!=null && x.pagadas!=null)
+        ? "cuota "+x.pagadas+" de "+x.total+" &middot; faltan "+x.restantes
+        : "sin datos de cuotas";
+      return '<div class="mv"><span class="d">'+esc(x.desc)+'<small>'+pie+
+        ' &middot; cuota '+fmtC(x.cuotaC)+(x.reg?" &middot; la de esta ventana ya está registrada":"")+
+        '</small></span><span class="m num'+(cuenta?"":" sub")+'">'+
+        (x.saldoC!=null? fmtC(x.saldoC) : "—")+'</span></div>';
+    }).join("");
+  }
+  h+=lista(cu.fin.mini,"Minicuotas · restan del límite","Ninguna con esta tarjeta.",true);
+  if(cu.fin.sinDato.length)
+    h+=lista(cu.fin.sinDato,"Minicuotas sin datos de cuotas","",false)+
+      '<div class="nota">No se sabe cuántas cuotas faltan, así que no se estima su saldo ni se descuenta del límite. '+
+      'Se arregla cargando «esta es la cuota N de M» en la app madre.</div>';
+  if(cu.fin.ext.length)
+    h+=lista(cu.fin.ext,"Extrafinanciamientos · informativos","",false)+
+      '<div class="nota">No restan del límite acá: vos pediste que solo lo hicieran las minicuotas.</div>';
+  if(cu.fin.otro.length)
+    h+=lista(cu.fin.otro,"Financiamientos sin clasificar","",false)+
+      '<div class="nota">La descripción no dice si es minicuota o extrafinanciamiento, así que no se descuenta de nada.</div>';
   abreHoja(h);
 }
 
@@ -1608,6 +1823,7 @@ document.addEventListener("click", function(e){
   if(acc==="nota-paso"){ notaPaso(+v); return; }
   if(acc==="nota-forma"){ guardaNota(v); return; }
   if(acc==="tj-gasto"){ hojaGastoTj(v); return; }
+  if(acc==="tj-cupo"){ hojaCupoTj(v); return; }
   if(acc==="nota-borrar"){ pideBorrar(t,v); return; }
   if(acc==="nota-borrar-ok"){ borraNota(v); return; }
 }, false);

@@ -36,6 +36,7 @@
   --linea:#e3e2de; --linea2:#eeedea; --linea3:#f5f4f1;
   --tx:#0b0b0b; --tx2:#52514e; --tx3:#8b8a84;
   --plan:#2a78d6; --plan-tx:#1c5cab; --plan-bg:#f3f8fe; --plan-linea:#d9e8fb; --plan-pista:#cde2fb;
+  --gasto-tx:#a85a10; --gasto:#e8a24e; --gasto-pista:#f3d9b6;
   --ok-tx:#006300; --mal-tx:#b02f2f; --avi-tx:#6b4d00; --avi-bg:#fdf8ec; --avi-linea:#eee0bc;
   --r:10px;
   --barra:76px;
@@ -130,11 +131,17 @@ main{padding:10px 12px 20px}
 .rub:last-child{border-bottom:0}
 .rub .r1{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px}
 .rub .nom{font-weight:600;font-size:20.5px;flex:1 1 auto;min-width:0;overflow-wrap:anywhere}
-.rub .queda{font-weight:650;font-size:20.5px;white-space:nowrap}
+.rub .queda{font-weight:650;font-size:20.5px;white-space:nowrap;color:var(--ok-tx)}
+.rub .queda.neg{color:var(--mal-tx)}
+.rub .queda .sub{color:var(--tx3)}
+.rub .r2 .gas{color:var(--gasto-tx)}
+.rub .r2 .pre{color:var(--plan-tx)}
 .rub .r2{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:4px;font-size:15.5px;color:var(--tx3)}
-.rub .pista{display:block;height:5px;background:var(--linea2);border-radius:2px;margin-top:7px;overflow:hidden}
-.rub .pista i{display:block;height:100%;background:#b9d5f4;border-radius:2px}
-.rub .pista i.over{background:#e8b4b4}
+/* la pista es el presupuesto (azul) y lo lleno es lo gastado (naranja) */
+.rub .pista{display:block;height:5px;background:var(--plan-pista);border-radius:2px;
+  margin-top:7px;overflow:hidden}
+.rub .pista i{display:block;height:100%;background:var(--gasto);border-radius:2px}
+.rub .pista i.over{background:#d98a8a}
 .rub.mini{padding:9px 13px 10px}
 .rub.mini .nom{font-weight:500;font-size:18px}
 .rub.mini .queda{font-size:17.5px;font-weight:600}
@@ -1167,8 +1174,8 @@ function filaRubro(r,mini){
     '<span class="r1"><span class="nom">'+esc(r.cat)+'</span>'+
       '<span class="queda num'+(q!=null&&q<0?" neg":"")+'">'+
         (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(q))+'</span></span>'+
-    '<span class="r2"><span>gastado '+fmtC(gas)+'</span>'+
-      (pres!=null? '<span>de '+fmtC(pres)+'</span>' : '')+
+    '<span class="r2"><span class="gas">gastado '+fmtC(gas)+'</span>'+
+      (pres!=null? '<span class="pre">de '+fmtC(pres)+'</span>' : '')+
       (r.n? '<span>'+r.n+' mov.</span>':'')+'</span>'+
     (pct!=null? '<span class="pista"><i class="'+(pct>100?"over":"")+'" style="width:'+
         Math.min(100,pct)+'%"></i></span>' : '')+

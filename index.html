@@ -921,14 +921,28 @@ function proxDiaDelMes(dia,desde){
   if(f<=h) f=fechaDia(h.getFullYear(),h.getMonth()+1,dia);
   return f;
 }
-/* FECHA LÍMITE DE PAGO DEL CORTE ANTERIOR: el primer día de pago que cae después
-   de que ese corte cerró. Es un RECORDATORIO. No decide si algo está pagado —
-   eso solo lo dice tu marca — y no mueve ningún número (regla 3). */
-function vencePago(tj,hoy){
+/* FECHA LÍMITE DE PAGO: el primer día de pago que cae después de que ese corte
+   cerró. Es un RECORDATORIO. No decide si algo está pagado —eso solo lo dice tu
+   marca— y no mueve ningún número (regla 3).
+
+   Son DOS fechas distintas y confundirlas es el error obvio:
+     · el corte EN CURSO todavía no cerró, así que su pago siempre está por
+       venir. Esa es la que va arriba, con los datos de la tarjeta.
+     · el corte ANTERIOR ya cerró; su pago puede estar vencido. Esa es la que
+       va abajo, junto a lo que se debe. */
+function venceDe(tj,cierre,hoy){
   if(tj.pago==null || !(tj.pago>=1&&tj.pago<=31)) return null;
   if(tj.corte==null || !(tj.corte>=1&&tj.corte<=31)) return null;
-  var an=corteAnterior(tj.corte,hoy), f=proxDiaDelMes(tj.pago,an), d=diasEntre(hoy,f);
+  var f=proxDiaDelMes(tj.pago,cierre), d=diasEntre(hoy,f);
   return {fecha:f, dias:d, vencido:d<0, hoy:d===0};
+}
+function venceActual(tj,hoy){
+  if(tj.corte==null || !(tj.corte>=1&&tj.corte<=31)) return null;
+  return venceDe(tj,corteQueAtrapa(tj.corte,hoy),hoy);
+}
+function vencePago(tj,hoy){          /* el del corte anterior: el que está pendiente */
+  if(tj.corte==null || !(tj.corte>=1&&tj.corte<=31)) return null;
+  return venceDe(tj,corteAnterior(tj.corte,hoy),hoy);
 }
 /* Cuántos días faltan para el corte y cuántos pasaron desde el anterior. Sirve
    para saber en qué corte cae una compra de hoy; ningún monto sale de acá. */
@@ -1314,10 +1328,10 @@ var EX={
   proy:["Proyección","<code>saldo real + ingreso por entrar − compromisos pendientes</code>.<br><br>Es el mismo <b>saldo libre proyectado</b> de la app madre: lo que queda después de ejecutar el presupuesto. No es dinero real y por eso va en su propio recuadro."],
   rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de este corte."],
   gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en este corte:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los pagos permanentes de este corte que se cobran con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
-  anterior:["Corte anterior","Lo que gastaste con esta tarjeta en el corte anterior, y si lo marcaste como pagado.<br><br>La fecha de vencimiento sale del día de pago de la libreta: es un recordatorio, no cambia ningún número.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
+  anterior:["Corte anterior","Lo que gastaste con esta tarjeta en el corte anterior, y si lo marcaste como pagado.<br><br>Son dos fechas distintas: arriba va la del corte que está abierto —que todavía no cerró, así que su pago siempre está por venir— y acá la del corte anterior, que ya cerró y puede estar vencida.<br><br>Las dos salen del día de pago de la libreta: son recordatorios, no cambian ningún número.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
   cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de este corte − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app madre y se dice cuál se usó; sin tasa no se estima nada."],
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
-  corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto."],
+  corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto.<br><br>«Vence el» es la fecha máxima de pago <b>del corte que está abierto</b>: el primer día de pago que cae después de que ese corte cierre. Todavía no llega. La del corte anterior va abajo, junto a lo que se debe."],
   cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
   registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ningún corte."],
   estado:["De dónde viene lo que ves","EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
@@ -1565,11 +1579,11 @@ function bloqueBenes(S,k,t){
 }
 /* Los datos generales de la tarjeta, debajo del nombre: cuándo corta, cuándo
    paga, cuándo vence, cuánto es el límite y cuánto le toman las minicuotas. */
-function datosTj(t,cu,pl,v){
+function datosTj(t,cu,pl,va){
   var h='<div class="tj-f" data-acc="ex" data-ex="corte">'+
     '<span>corta el '+esc(String(t.corte))+'</span>'+
     '<span>paga el '+esc(t.pago!=null?String(t.pago):"—")+'</span>'+
-    (v? '<span>'+esc(txtVence(v))+'</span>' : '')+
+    (va? '<span>vence el '+esc(fmtD(va.fecha))+'</span>' : '')+
     (pl.desdeCorte!=null?'<span>'+esc(txtDesde(pl))+'</span>':'')+'</div>';
   if(!cu.hay)
     return h+'<div class="tj-f" data-acc="ex" data-ex="cupo"><span>'+
@@ -1597,7 +1611,8 @@ function vTarjetas(){
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
     var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
-    var ant=deudaAnterior(S,k,t), cu=cupoTjC(S,k,t,hoyISO()), v=vencePago(t,hoy());
+    var ant=deudaAnterior(S,k,t), cu=cupoTjC(S,k,t,hoyISO());
+    var va=venceActual(t,hoy()), v=vencePago(t,hoy());
     var nPend=g.det.filter(function(x){ return !x.reg; }).length;
     var urge=(pl.hastaCorte!=null && pl.hastaCorte<=3);
     h+='<div class="tj" style="'+estiloTj(S,t.nombre)+'">'+
@@ -1605,7 +1620,7 @@ function vTarjetas(){
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
         '<span class="tj-c'+(urge?" urge":"")+'" data-acc="ex" data-ex="corte">'+
         esc(txtCorte(pl))+'</span></div>'+
-      datosTj(t,cu,pl,v)+
+      datosTj(t,cu,pl,va)+
       /* 2 · cuánto queda de la tarjeta */
       (cu.hay
         ? '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+

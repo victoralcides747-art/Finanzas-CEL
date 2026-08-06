@@ -67,18 +67,30 @@ select.pill{background:var(--card);border:1px solid var(--linea);border-radius:8
   flex:1 1 auto;min-width:0}
 select.pill:focus{border-color:var(--plan)}
 .hbtn.men{font-size:22px;line-height:1;padding:4px 12px 9px;letter-spacing:1px}
-.esc{display:flex;align-items:center;gap:8px;flex:none}
+/* SIN wrap adentro: si el porcentaje y los botones envuelven entre ellos, se
+   montan y A+ deja de ser tocable. Lo que envuelve es la fila entera (.fila-aj),
+   y eso sí está bien. */
+.esc{display:flex;align-items:center;gap:8px;flex:0 0 auto;flex-wrap:nowrap}
 .esc button{background:var(--card2);border:1px solid var(--linea);border-radius:9px;
   padding:9px 14px;color:var(--tx2);font-size:18px;font-weight:600;cursor:pointer;
   min-width:54px}
-.esc b{min-width:58px;text-align:center;font-weight:650}
+.esc b{min-width:58px;text-align:center;font-weight:650;flex:0 0 auto}
+.esc button{flex:0 0 auto}
 .fila-aj{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;
   padding:13px 0;border-bottom:1px solid var(--linea3);font-size:17px}
-.fila-aj>span:first-child{flex:1;min-width:0}
-.est{flex:none;display:flex;flex-direction:column;align-items:flex-end;line-height:1.15;
-  background:none;border:0;padding:2px 0;cursor:pointer;text-align:right}
-.est-m{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--tx3)}
-.est-v{font-size:13px;color:var(--tx3)}
+.fila-aj>span:first-child{flex:1 1 auto;min-width:0}
+/* El control de tamaño queda clavado arriba de la hoja: a letra muy grande la
+   hoja tiene que desplazarse, y si A− se va de la vista quedás sin forma de
+   volver a achicar. */
+.fila-aj.fija{position:sticky;top:-14px;background:var(--card);z-index:2;
+  border-top:0;margin-top:-14px;padding-top:14px}
+/* flex:0 1 auto + min-width:0: el segundo renglón ahora dice cuánto hace del
+   dato y es más largo; con flex:none no encogía y a letra grande se salía de la
+   pantalla. */
+.est{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;align-items:flex-end;
+  line-height:1.15;background:none;border:0;padding:2px 0;cursor:pointer;text-align:right}
+.est-m{font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--tx3);white-space:nowrap}
+.est-v{font-size:13px;color:var(--tx3);overflow-wrap:anywhere}
 .est.vivo .est-m{color:var(--ok-tx)}
 .est.cache .est-m{color:var(--avi-tx)}
 .est.mal .est-m{color:var(--mal-tx)}
@@ -217,6 +229,11 @@ main{padding:10px 12px 20px}
   text-align:left;overflow-wrap:break-word}
 .formas button.on{background:var(--plan-bg);border-color:var(--plan-linea);
   color:var(--plan-tx);font-weight:650}
+.mudanza{margin:10px 12px;padding:12px 13px;border:1px solid var(--avi-linea);
+  background:var(--avi-bg);border-radius:9px;font-size:16px;color:var(--tx)}
+.mudanza b{font-weight:650}
+.mudanza .sub{font-size:14px;margin-top:8px}
+.mudanza .pasos{margin-top:10px}
 .nota{font-size:15.5px;color:var(--avi-tx);background:var(--avi-bg);
   border:1px solid var(--avi-linea);border-radius:7px;padding:5px 8px;margin-top:7px}
 .bene{font-size:17px;color:var(--tx2);margin-top:7px}
@@ -286,7 +303,10 @@ main{padding:10px 12px 20px}
 /* ── hoja emergente (explicaciones, desgloses, pasos) ─────────────── */
 .fondo{position:fixed;inset:0;background:rgba(20,20,22,.42);z-index:80;
   display:flex;align-items:flex-end;animation:fd .12s ease-out;
-  padding-bottom:var(--kb,0px)}
+  /* --kb viene en píxeles de pantalla y esta caja tiene zoom: sin dividir por la
+     escala, a 240% el hueco del teclado se multiplica y saca la hoja de la
+     pantalla. Misma trampa que los vh de más abajo. */
+  padding-bottom:calc(var(--kb,0px) / var(--z,1))}
 .fondo.arriba{align-items:flex-start;padding-bottom:0}
 @keyframes fd{from{opacity:0}to{opacity:1}}
 .hoja{background:var(--card);width:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;
@@ -341,6 +361,34 @@ main{padding:10px 12px 20px}
 #pinOv .msg{color:#e06b6b;font-size:14.5px;min-height:16px;text-align:center}
 #pinOv .alt{background:none;border:1px solid #33333a;color:#9a9aa2;font-size:14.5px;
   padding:11px;width:210px;border-radius:10px}
+/* qué cuenta está abierta · en un aparato compartido hay que saberlo antes de
+   creerle a los números */
+#pinOv .cta-cuenta{color:#7d7d86;font-size:14.5px}
+#pinOv .cta-cuenta b{color:#c9c9d0;font-weight:650}
+#pinOv .cta-cuenta button{background:none;border:none;color:#6f9fe6;font-size:14.5px;
+  width:auto;padding:4px 6px;font-weight:600;cursor:pointer}
+#pinOv .cta-caja{display:flex;flex-direction:column;align-items:center;gap:9px;
+  border:1px solid #33333a;border-radius:12px;padding:16px 14px;max-width:280px}
+#pinOv .cta-caja input{width:210px;font-size:19px;letter-spacing:0;text-align:center}
+#pinOv .cta-caja button{width:210px;padding:12px;font-size:15.5px}
+#pinOv .cta-caja .t3{color:#7d7d86;font-size:13.5px;text-align:center}
+/* la cuenta abierta, también dentro de la app */
+.cuenta-chip{font-size:14px;color:var(--tx3);font-weight:600;letter-spacing:.02em}
+/* ── el corte que estás viendo ya pasó ──────────────────────────────
+   Una franja delgada pegada bajo la cabecera y un marco alrededor de la
+   pantalla. Naranja intenso = por cerrar; rojo = cerrado. */
+/* va adentro del <header>, que ya es sticky: así el aviso no se va con el scroll
+   sin tener que apilar dos elementos pegajosos */
+.faja{padding:6px 12px;font-size:15px;line-height:1.3;color:#fff;cursor:pointer;
+  overflow-wrap:anywhere}
+.faja b{font-weight:800;letter-spacing:.04em}
+.faja u{font-weight:700}
+.faja.anterior{background:#6b6b74}
+.faja.porcerrar{background:#e2670c}
+.faja.cerrada{background:#c02626}
+#marco{position:fixed;inset:0;pointer-events:none;z-index:55;border:0 solid transparent}
+#marco.porcerrar{border:5px solid #e2670c}
+#marco.cerrada{border:5px solid #c02626}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(var(--barra) + var(--safe-b) + 12px);
   background:#25252a;color:#f2f2f0;padding:14px 16px;border-radius:9px;font-size:16.5px;
   z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.22)}
@@ -361,15 +409,51 @@ main{padding:10px 12px 20px}
 /* =============================================================================
    NUBE · conexión, sesión y escucha en vivo
 ============================================================================= */
-var CORREO_FIJO = "victor@finanzas.app";   /* mismo usuario que la app madre */
+/* -----------------------------------------------------------------------------
+   LA CUENTA · una casa por documento
+   -----------------------------------------------------------------------------
+   La app madre dejó de ser de una sola casa. Cada cuenta tiene SU documento en
+   la colección finanzas, y su propio usuario de Firebase:
+
+       la de siempre   →  finanzas/estado     victor@finanzas.app
+       cualquier otra  →  finanzas/<cuenta>   <cuenta>@finanzas.app
+
+   El documento de la casa original se quedó en "estado" a propósito: cero
+   migración sobre datos reales. Ese caso especial se respeta, no se normaliza.
+
+   La cuenta vive EN EL APARATO, no en los datos. `cuentaNorm` es copia literal
+   de la madre: si una app guarda "Rosa" y la otra busca "rosa", nadie encuentra
+   nada y el error no se ve hasta que alguien pierde datos.
+----------------------------------------------------------------------------- */
+var CUENTA_ORIGINAL="victor";
+var LLAVE_CUENTA="finanzasHogar_cuenta";
+function cuentaNorm(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+    .replace(/[^a-z0-9]/g,"").slice(0,24);
+}
+function cuentaActual(){
+  var c=""; try{ c=localStorage.getItem(LLAVE_CUENTA)||""; }catch(e){}
+  return cuentaNorm(c)||CUENTA_ORIGINAL;
+}
+var CUENTA=cuentaActual();
+var CORREO_FIJO=CUENTA+"@finanzas.app";
+var DOC_NUBE=(CUENTA===CUENTA_ORIGINAL)? "estado" : CUENTA;
+
+/* El caché TAMBIÉN es por cuenta. Con una sola llave, al cambiar de cuenta se
+   verían en pantalla los números cacheados de la otra antes de que llegue la
+   nube. Mismo sufijo que usa la madre: nada para la de siempre, "__cuenta" para
+   el resto. La escala de letra no lleva sufijo: es del aparato, no de la casa. */
+function llaveCuenta(base){
+  return (CUENTA===CUENTA_ORIGINAL)? base : base+"__"+CUENTA;
+}
 var LL = {
-  cache:"finanzasSatelite_v1",        /* último JSON recibido, para abrir sin esperar */
-  ts:   "finanzasSatelite_v1_ts",     /* ts del documento (marca de la app madre) */
-  rx:   "finanzasSatelite_v1_rx",     /* cuándo lo recibió ESTE aparato */
-  nom:  "finanzasSatelite_nombre",    /* nombre corto de quien usa este aparato */
-  int:  "finanzasSatelite_interes",   /* rubros de interés de ESTE aparato */
-  entro:"finanzasSatelite_entro",     /* ya entró con PIN alguna vez en este aparato */
-  esc:  "finanzasSatelite_escala"     /* tamaño de letra elegido en este aparato */
+  cache:llaveCuenta("finanzasSatelite_v1"),      /* último JSON recibido */
+  ts:   llaveCuenta("finanzasSatelite_v1_ts"),   /* ts del documento (marca de la madre) */
+  rx:   llaveCuenta("finanzasSatelite_v1_rx"),   /* cuándo lo recibió ESTE aparato */
+  nom:  llaveCuenta("finanzasSatelite_nombre"),  /* nombre corto de quien usa el aparato */
+  int:  llaveCuenta("finanzasSatelite_interes"), /* rubros de interés */
+  entro:llaveCuenta("finanzasSatelite_entro"),   /* ya entró con PIN alguna vez */
+  esc:  "finanzasSatelite_escala"                /* tamaño de letra · del APARATO */
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
@@ -403,15 +487,43 @@ var NOTAS=[];               /* notas de la colección aparte */
 /* -----------------------------------------------------------------------------
    LA ÚNICA PUERTA AL DOCUMENTO DE LA APP MADRE.
    La referencia se crea acá adentro, se le pide onSnapshot y no sale nunca de
-   esta función. No hay ninguna otra mención a "finanzas/estado" en el archivo,
-   así que no existe forma de escribirlo, ni por error.
+   esta función. No hay ninguna otra mención a la colección "finanzas" en el
+   archivo, así que no existe forma de escribirla, ni por error.
+   El documento es el de LA CUENTA ABIERTA: las reglas de Firestore comparan el
+   correo de la sesión contra el nombre del documento, así que pedir el que no
+   toca da permission-denied.
 ----------------------------------------------------------------------------- */
 function escucharEstado(alDato, alError){
-  return db.collection("finanzas").doc("estado").onSnapshot(alDato, alError);
+  /* includeMetadataChanges es lo que hace honesto el rótulo EN VIVO. Sin esto,
+     Firestore NO vuelve a llamar cuando lo único que cambia es que perdió el
+     servidor y pasó a servir de su caché: la app se queda diciendo "en vivo"
+     con un dato viejo y una conexión muerta, que es justo lo que pasaba. */
+  return db.collection("finanzas").doc(DOC_NUBE)
+    .onSnapshot({includeMetadataChanges:true}, alDato, alError);
 }
-/* La colección de notas es otra cosa y sí se escribe (ver § NOTAS). */
-function colNotas(){ return db.collection("notas"); }
+/* -----------------------------------------------------------------------------
+   LAS NOTAS TAMBIÉN VAN POR CUENTA.
+   Antes vivían sueltas en "notas": cualquier sesión las veía. Con dos casas
+   distintas usando la misma app eso mezcla. Ahora cada cuenta tiene su
+   subcolección, y el servidor la protege igual que al documento del estado:
 
+       notas/<cuenta>/items/<id>     ←  solo <cuenta>@finanzas.app
+
+   Ojo con lo que NO cambia: las dos personas de la misma casa comparten cuenta
+   (mismo usuario, mismo PIN), así que siguen viendo las mismas anotaciones. Lo
+   que se separa es una casa de la otra, no una persona de la otra.
+----------------------------------------------------------------------------- */
+function colNotas(){ return db.collection("notas").doc(CUENTA).collection("items"); }
+/* El lugar viejo. Solo se usa para mover lo que quedó ahí, y solo desde la
+   cuenta original: es la única que tenía notas antes de este cambio. */
+function colNotasViejas(){ return db.collection("notas"); }
+
+/* Tres orígenes distintos, y no hay que confundirlos:
+     deCache    · nuestra copia en el aparato, al abrir sin esperar a la nube
+     fromCache  · Firestore contestó de SU caché porque perdió el servidor
+     ninguno    · vino del servidor, ahora
+   RX es "cuándo llegó algo de verdad a este aparato". Un snapshot servido desde
+   la caché de Firestore no es una llegada nueva: no toca RX ni el guardado. */
 function aplicarEstado(txt, ts, deCache, fromCache){
   var obj=null;
   try{ obj=JSON.parse(txt); }catch(e){ return false; }
@@ -419,12 +531,21 @@ function aplicarEstado(txt, ts, deCache, fromCache){
   S=obj; normaliza(S);
   TS_DATO = ts||0;
   if(deCache){ FUENTE="cache"; RX=parseInt(lsGet(LL.rx)||"0",10)||0; }
+  else if(fromCache){ FUENTE="cache"; if(!RX) RX=parseInt(lsGet(LL.rx)||"0",10)||0; }
   else{
-    FUENTE = fromCache ? "cache" : "vivo";
-    RX = Date.now();
+    FUENTE="vivo";
+    RX=Date.now();
     lsSet(LL.cache, txt); lsSet(LL.ts, String(TS_DATO)); lsSet(LL.rx, String(RX));
   }
   return true;
+}
+/* ¿Hay conexión AHORA? Tres señales, y basta que una diga que no:
+     · el último snapshot vino de la caché de Firestore
+     · el navegador dice que no hay red
+     · nunca llegó nada del servidor */
+function hayConexion(){
+  if(typeof navigator!=="undefined" && navigator.onLine===false) return false;
+  return FUENTE==="vivo";
 }
 /* Rellena lo que falte para no reventar con un estado viejo o incompleto. */
 function normaliza(x){
@@ -456,6 +577,7 @@ function suscribir(){
     var d=doc.data()||{};
     var fc = !!(doc.metadata && doc.metadata.fromCache);
     if(d.datos && aplicarEstado(d.datos, d.ts||0, false, fc)) pinta();
+    else{ FUENTE = fc? "cache" : "vivo"; pinta(); }   /* cambió solo el estado de la conexión */
   }, function(e){
     ERR=(e&&e.code)||"error"; FUENTE = S? FUENTE : "mal"; pinta();
   });
@@ -471,6 +593,7 @@ function suscribir(){
     NOTAS=out; ERRN="";
     if(VISTA.tab==="registro") pinta();
   }, function(e){ ERRN=(e&&e.code)||"error"; if(VISTA.tab==="registro") pinta(); });
+  revisaNotasViejas();
 }
 function desuscribir(){
   try{ if(desEstado) desEstado(); }catch(e){}
@@ -493,7 +616,10 @@ function pantallaPIN(mensaje, ofreceCache){
         'autocomplete="off" placeholder="••••••">'+
       '<button id="pinBt">Entrar</button>'+
       '<div class="msg" id="pinMsg"></div>'+
-      '<button class="alt" id="pinAlt" style="display:none">Ver el último dato guardado</button>';
+      '<button class="alt" id="pinAlt" style="display:none">Ver el último dato guardado</button>'+
+      '<div class="cta-cuenta">cuenta: <b id="pinCta"></b> '+
+        '<button id="pinCam" title="En un aparato de una sola persona esto no se toca: '+
+        'se elige una vez y después solo se escribe el PIN.">cambiar</button></div>';
     document.body.appendChild(ov);
     var inp=ov.querySelector("#pinIn");
     ov.querySelector("#pinBt").addEventListener("click", intentarLogin);
@@ -502,13 +628,57 @@ function pantallaPIN(mensaje, ofreceCache){
       var t=lsGet(LL.cache);
       if(t && aplicarEstado(t, parseInt(lsGet(LL.ts)||"0",10)||0, true)){ ocultarPIN(); arrancarVista(); }
     });
+    ov.querySelector("#pinCam").addEventListener("click", pedirCuenta);
     setTimeout(function(){ try{ inp.focus(); }catch(e){} }, 120);
   }
   ov.style.display="flex";
   aplicaEscala();
-  ov.querySelector("#pinMsg").textContent = mensaje||"";
+  /* null = dejá el mensaje que estaba · "" = limpialo */
+  if(mensaje!==null && mensaje!==undefined) ov.querySelector("#pinMsg").textContent=mensaje;
+  ov.querySelector("#pinCta").textContent=CUENTA;
   ov.querySelector("#pinAlt").style.display =
     (ofreceCache && lsGet(LL.cache) && lsGet(LL.entro)==="1") ? "block" : "none";
+}
+/* -----------------------------------------------------------------------------
+   CAMBIAR DE CUENTA · una vez por aparato, y después solo el PIN.
+   Cerrar sesión ANTES de recargar. Con salvavidas: si signOut se cuelga, la
+   recarga igual ocurre a los 2,5 s — pero entonces el candado de arriba atrapa
+   la sesión ajena y no deja que la app le pida nada a la nube.
+----------------------------------------------------------------------------- */
+function cambiarCuenta(nombre){
+  var c=cuentaNorm(nombre);
+  if(!c) return false;
+  try{ localStorage.setItem(LLAVE_CUENTA, c); }catch(e){}
+  desuscribir();
+  var hecho=false, ya=function(){ if(hecho) return; hecho=true; location.reload(); };
+  setTimeout(ya, 2500);
+  try{ if(auth) auth.signOut().then(ya)["catch"](ya); else ya(); }
+  catch(e){ ya(); }
+  return true;
+}
+function pedirCuenta(){
+  var ov=document.getElementById("pinOv"); if(!ov) return;
+  var caja=ov.querySelector("#pinCuenta");
+  if(caja){ caja.parentNode.removeChild(caja); return; }
+  caja=document.createElement("div");
+  caja.id="pinCuenta"; caja.className="cta-caja";
+  caja.innerHTML='<div class="t2">¿De quién son los datos de este aparato?</div>'+
+    '<input id="ctaIn" type="text" autocomplete="off" maxlength="24" placeholder="nombre" '+
+      'value="'+esc(CUENTA)+'">'+
+    '<button id="ctaOk">Usar esta cuenta</button>'+
+    '<div class="t3">Cada cuenta tiene su PIN y sus datos aparte. Nada se mezcla.</div>';
+  ov.appendChild(caja);
+  var ci=caja.querySelector("#ctaIn");
+  function ok(){
+    var v=cuentaNorm(ci.value);
+    if(!v){ ci.value=""; try{ ci.focus(); }catch(e){} return; }
+    if(v===CUENTA){ caja.parentNode.removeChild(caja); return; }
+    caja.querySelector("#ctaOk").textContent="Cambiando…";
+    cambiarCuenta(v);
+  }
+  caja.querySelector("#ctaOk").addEventListener("click", ok);
+  ci.addEventListener("keydown", function(e){ if(e.key==="Enter") ok(); });
+  setTimeout(function(){ try{ ci.focus(); ci.select(); }catch(e){} },80);
 }
 function ocultarPIN(){ var o=document.getElementById("pinOv"); if(o) o.style.display="none"; }
 function intentarLogin(){
@@ -583,6 +753,11 @@ function cambiaEscala(d){
   aplicaEscala();
   var e=document.getElementById("escPct");
   if(e) e.textContent=Math.round(v*100)+"%"; else toast("Tamaño "+Math.round(v*100)+"%");
+  /* Al agrandar, la hoja de ajustes crece y A− / A+ se van de la parte visible:
+     quedarías sin poder volver a achicar. El control es lo primero de la hoja,
+     así que basta con subir el desplazamiento al tope. */
+  var h=document.querySelector(".hoja");
+  if(h && e) h.scrollTop=0;
 }
 window.addEventListener("resize", function(){ aplicaEscala(); });
 
@@ -595,6 +770,10 @@ function ajustaTeclado(){
   var vv=window.visualViewport;
   if(!vv){ return; }
   var tapa=Math.max(0, Math.round((window.innerHeight||vv.height) - vv.height - vv.offsetTop));
+  /* Un teclado tapa mucho. Diferencias chicas son la barra de direcciones del
+     navegador, que va y viene sola: tomarlas por teclado empuja las hojas fuera
+     de la pantalla y deja botones intocables. */
+  if(tapa<120) tapa=0;
   document.documentElement.style.setProperty("--kb", tapa+"px");
 }
 if(window.visualViewport){
@@ -607,7 +786,25 @@ function arrancarVista(){
   if(ARRANCO) return; ARRANCO=true;
   ocultarPIN();
   pinta();
+  latido();
   if(!lsGet(LL.nom)) setTimeout(function(){ pedirNombre(false); }, 400);
+}
+/* -----------------------------------------------------------------------------
+   LATIDO · que el rótulo no mienta con el paso del tiempo
+   Dos cosas envejecen solas y nadie las avisa: cuánto hace del dato, y si el
+   corte que estás mirando pasó a estar por cerrar o cerrado. Se repinta cada
+   minuto, al volver a la pantalla y cuando el navegador dice que ganó o perdió
+   la red. Repintar es barato: no le pide nada a la nube.
+----------------------------------------------------------------------------- */
+var TIC=null;
+function latido(){
+  if(TIC) return;
+  TIC=setInterval(function(){ if(ARRANCO && !document.hidden) pinta(); }, 60000);
+  document.addEventListener("visibilitychange", function(){
+    if(!document.hidden && ARRANCO) pinta();
+  });
+  window.addEventListener("online",  function(){ if(ARRANCO) pinta(); });
+  window.addEventListener("offline", function(){ if(ARRANCO) pinta(); });
 }
 function arrancar(){
   /* Abrir mostrando el caché mientras llega el primer snapshot. */
@@ -619,10 +816,32 @@ function arrancar(){
   arrancarVista();
   suscribir();
 }
+/* -----------------------------------------------------------------------------
+   EL CANDADO QUE COSTÓ ENCONTRAR EN LA APP MADRE.
+   Firebase recuerda la sesión en el navegador: sobrevive a recargas y a cerrar
+   el navegador, hasta que alguien llame a signOut().
+
+   Si se cambia de cuenta guardando el nombre nuevo y recargando, la página
+   vuelve AUTENTICADA COMO LA CUENTA ANTERIOR pero apuntando al documento de la
+   nueva. El servidor rechaza todo y se ve una app vacía que no sincroniza, sin
+   ninguna pista de por qué. Por eso hay dos candados: cerrar sesión ANTES de
+   recargar (ver cambiarCuenta) y comprobar acá que la sesión guardada ES la de
+   la cuenta abierta.
+----------------------------------------------------------------------------- */
 if(FB_OK && auth){
   auth.onAuthStateChanged(function(u){
+    if(u && u.email && CORREO_FIJO &&
+       String(u.email).toLowerCase()!==CORREO_FIJO.toLowerCase()){
+      SESION=false;
+      try{ auth.signOut(); }catch(e){}
+      if(!ARRANCO) pantallaPIN("Escribí el PIN de «"+CUENTA+"».", true);
+      return;                    /* NO arrancar: no le pidas nada a la nube */
+    }
     if(u){ SESION=true; lsSet(LL.entro,"1"); arrancar(); }
-    else{ SESION=false; if(!ARRANCO) pantallaPIN("", true); }
+    /* signOut() dispara OTRO onAuthStateChanged con null. Si esa segunda vuelta
+       repintara el PIN con mensaje vacío, borraría el aviso recién puesto: por
+       eso null = "dejá el mensaje que estaba". */
+    else{ SESION=false; if(!ARRANCO) pantallaPIN(null, true); }
   });
 }else{
   pantallaPIN("Sin conexión a la nube.", true);
@@ -1301,6 +1520,27 @@ function squarify(datos,W,H){
   }
   return out;
 }
+/* =============================================================================
+   ¿ESTOY MIRANDO UN CORTE QUE YA PASÓ?
+   -----------------------------------------------------------------------------
+   Confundir el corte que ves con el corte que corre es el error que más caro
+   sale: se leen números viejos como si fueran los de hoy. Pasa solo cuando ya
+   existe un corte más nuevo, y se pone más grave con el correr del mes:
+
+       antes del 10   ·  es un corte anterior, nada más
+       del 10 al 15   ·  POR CERRAR
+       del 16 en adelante ·  CERRADO
+
+   Las fechas son de reloj, no de los datos: acá no se decide ningún monto
+   (regla 3), solo cuánto hay que gritarlo.
+============================================================================= */
+function estadoCorte(S,k,hoy){
+  var ult=ultimaVentana(S);
+  if(!ult || !k || k===ult) return {previa:false, nivel:"", ultima:ult};
+  var d=dsol(hoy).getDate();
+  var nivel = (d>15)? "cerrada" : (d>=10)? "porcerrar" : "anterior";
+  return {previa:true, nivel:nivel, ultima:ult};
+}
 /*==LOGICA-FIN==*/
 
 /* =============================================================================
@@ -1337,7 +1577,8 @@ var EX={
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto.<br><br>«Vence el» es la fecha máxima de pago <b>del corte que está abierto</b>: el primer día de pago que cae después de que ese corte cierre. Todavía no llega. La del corte anterior va abajo, junto a lo que se debe."],
   cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
   registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ningún corte."],
-  estado:["De dónde viene lo que ves","EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
+  cuenta:["La cuenta abierta","De quién son los números que estás viendo.<br><br>Cada cuenta tiene su propio documento en la nube y su propio PIN: no se cruzan, y el servidor no deja leer el de otra. El caché de este aparato también va separado por cuenta.<br><br>Se cambia desde ⋯ → Cuenta abierta, o desde la pantalla del PIN. Es una vez por aparato; después, solo el PIN."],
+  estado:["De dónde viene lo que ves","Cuenta abierta: <b>"+esc(CUENTA)+"</b>.<br><br>EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
 };
 
 /* ---------- armazón ---------- */
@@ -1359,6 +1600,7 @@ function pinta(){
 
   app.innerHTML = cabecera() + '<main>'+cuerpo+'</main>';
   cajaBarra().innerHTML = barra();
+  marcoCorte();
   huecoBarra();
   pintaMapas(); ponTitulos(); aplicaEscala();
   if(fid){ var e2=document.getElementById(fid);
@@ -1378,11 +1620,54 @@ function cajaBarra(){
   if(!b){ b=document.createElement("div"); b.id="barra"; document.body.appendChild(b); }
   return b;
 }
+/* Cuánto hace, en palabras. Un "11:06" no dice nada a las 14:14; "hace 3 h" sí. */
+function haceCuanto(ts){
+  if(!ts) return "";
+  var min=Math.floor((Date.now()-ts)/60000);
+  if(min<0) return "recién";
+  if(min<1) return "recién";
+  if(min<60) return "hace "+min+" min";
+  var h=Math.floor(min/60);
+  if(h<24) return "hace "+h+" h";
+  var d=Math.floor(h/24);
+  return d===1? "hace 1 día" : "hace "+d+" días";
+}
+/* La franja: delgada, pegada bajo la cabecera, a todo el ancho. Dice qué corte
+   estás viendo y cuál es el que corre. */
+function fajaCorte(){
+  if(!S) return "";
+  var e=estadoCorte(S,kAct(),hoy());
+  if(!e.previa) return "";
+  var t = e.nivel==="cerrada"   ? "CORTE CERRADO"
+        : e.nivel==="porcerrar" ? "CORTE POR CERRAR"
+        : "CORTE ANTERIOR";
+  /* corto a propósito: el corte que estás viendo ya está en el selector de
+     arriba, repetirlo acá solo agrega renglones */
+  return '<div class="faja '+e.nivel+'" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
+    '<b>'+t+'</b> &middot; el que corre es '+esc(nomVentana(e.ultima))+
+    ' <u>ir</u></div>';
+}
+/* El marco: un recuadro de color alrededor de toda la pantalla, para que no se
+   pierda al hacer scroll. Va FUERA de #app, como la barra: una caja fixed
+   adentro de un elemento con zoom se sale de la pantalla. */
+function marcoCorte(){
+  var m=document.getElementById("marco");
+  var e=S? estadoCorte(S,kAct(),hoy()) : {previa:false,nivel:""};
+  if(!e.previa || e.nivel==="anterior"){ if(m) m.className=""; return; }
+  if(!m){ m=document.createElement("div"); m.id="marco"; document.body.appendChild(m); }
+  m.className=e.nivel;
+}
 function cabecera(){
   var k=kAct(), v=S? ventanasOrd(S):[];
-  var cls = FUENTE==="vivo"?"vivo" : FUENTE==="mal"?"mal" : "cache";
-  var m = FUENTE==="vivo"?"EN VIVO" : FUENTE==="mal"?"SIN LEER" : FUENTE==="espera"?"ESPERANDO" : "CACHÉ";
-  var det = TS_DATO? ("dato "+hhmm(TS_DATO)) : (RX? hhmm(RX) : "—");
+  /* EN VIVO significa CONECTADO AHORA, no "alguna vez me llegó algo".
+     Y el segundo renglón dice de cuándo es el dato, que es otra cosa. */
+  var con=hayConexion();
+  var cls = FUENTE==="mal"?"mal" : con?"vivo" : "cache";
+  var m = FUENTE==="mal"?"SIN LEER"
+        : FUENTE==="espera"?"ESPERANDO"
+        : con?"EN VIVO" : "SIN CONEXIÓN";
+  var det = TS_DATO? ("dato "+haceCuanto(TS_DATO)+" · "+hhmm(TS_DATO))
+          : (RX? hhmm(RX) : "—");
   return '<header><div class="hrow">'+
       '<span class="marca">Finanzas</span><span class="sp"></span>'+
       '<button class="est '+cls+'" data-acc="ex" data-ex="estado">'+
@@ -1392,7 +1677,15 @@ function cabecera(){
     (S? '<div class="hrow2"><select class="pill" id="selK" data-acc="ventana">'+
       v.map(function(x){ return '<option value="'+esc(x)+'"'+(x===k?" selected":"")+'>'+
         esc(nomVentana(x))+'</option>'; }).join("")+'</select>'+
+      /* De quién son estos números. Solo cuando NO es la cuenta de siempre: en un
+         aparato de una sola persona sería ruido permanente, y la cabecera es
+         cara —a letra grande, una línea de más tapa contenido—. Sin chip = la
+         cuenta de siempre. El nombre está siempre en ⋯ y en la pantalla del PIN. */
+      (CUENTA!==CUENTA_ORIGINAL
+        ? '<span class="sp"></span><span class="cuenta-chip" data-acc="ex" data-ex="cuenta">'+
+          esc(CUENTA)+'</span>' : '')+
       '</div>' : '')+
+    fajaCorte()+
     '</header>';
 }
 function hhmm(ts){
@@ -1886,7 +2179,8 @@ function vRegistro(){
     '</div></div>';
   if(ERRN) h+='<div class="caja"><div class="nota" style="margin:10px 12px">'+
       'No se pueden leer las anotaciones ('+esc(ERRN)+'). Si dice <b>permission-denied</b>, '+
-      'falta agregar la colección <b>notas</b> a las reglas de Firestore.</div></div>';
+      'falta agregar <b>notas/{cuenta}/items</b> a las reglas de Firestore.</div></div>';
+  h+=avisoMudanza();
   h+='<div class="caja"><div style="padding:10px 12px">'+
       '<input class="buscar" id="busca" placeholder="Buscar" value="'+esc(VISTA.busca||"")+'">'+
     '</div><div id="lista-notas">'+listaNotas(arr)+'</div></div>';
@@ -1962,6 +2256,9 @@ document.addEventListener("click", function(e){
 
   if(acc==="tab"){ VISTA.tab=v; VISTA.cierre=null; cierraHoja(); window.scrollTo(0,0); pinta(); return; }
   if(acc==="bloquear"){ bloquear(); return; }
+  if(acc==="ver-actual"){ VISTA.k=v; VISTA.cierre=null; pinta(); return; }
+  if(acc==="mudar-notas"){ mudarNotas(); return; }
+  if(acc==="cambiar-cuenta"){ cierraHoja(); bloquear(); setTimeout(pedirCuenta,120); return; }
   if(acc==="esc"){ cambiaEscala(v==="+"? 0.1 : -0.1); return; }
   if(acc==="ex"){ explica(t.getAttribute("data-ex")); return; }
   if(acc==="cerrar-hoja"){ cierraHoja(); return; }
@@ -2021,12 +2318,21 @@ function hoyISO(){ var d=new Date();
 
 /* ---------- elegir rubros de interés (queda en ESTE aparato) ---------- */
 function hojaMenu(){
-  abreHoja('<h3>Ajustes de este aparato</h3>'+
-    '<div class="hsub">Nada de esto toca los datos ni se comparte: vale solo para este teléfono.</div>'+
-    '<div class="fila-aj"><span>Tamaño de letra</span>'+
+  /* corta a propósito: a letra grande cada renglón de más empuja el control de
+     tamaño fuera de la parte visible */
+  abreHoja('<h3 title="Nada de esto toca los datos ni se comparte: vale solo para este teléfono.">'+
+      'Ajustes de este aparato</h3>'+
+    /* El tamaño de letra va PRIMERO, siempre. Si alguien sube a 300% y el
+       control queda fuera de alcance, no hay forma de volver. */
+    '<div class="fila-aj fija"><span>Tamaño de letra</span>'+
       '<span class="esc"><button data-acc="esc" data-v="-">A−</button>'+
       '<b id="escPct" class="num">'+Math.round(escalaMia()*100)+'%</b>'+
       '<button data-acc="esc" data-v="+">A+</button></span></div>'+
+    '<div class="fila-aj"><span>Cuenta abierta<br><span class="sub">'+esc(CUENTA)+
+      ' &middot; '+esc(DOC_NUBE==="estado"?"documento de siempre":"documento "+DOC_NUBE)+
+      '</span></span>'+
+      '<button class="lnk" data-acc="cambiar-cuenta" '+
+        'title="Cada cuenta tiene su PIN y su documento. Cambiarla cierra la sesión y vuelve a pedir el PIN.">cambiar</button></div>'+
     '<div class="fila-aj"><span>Nombre en este aparato<br><span class="sub">'+
       esc(nombreYo()||"sin nombre")+'</span></span>'+
       '<button class="lnk" data-acc="nombre">cambiar</button></div>'+
@@ -2135,6 +2441,67 @@ function borraNota(id){
   colNotas().doc(id).delete()
     .then(function(){ toast("Nota borrada"); })
     .catch(function(e){ toast("No se pudo borrar: "+((e&&e.code)||"error")); });
+}
+
+/* =============================================================================
+   MUDANZA DE LAS NOTAS VIEJAS
+   -----------------------------------------------------------------------------
+   Las anotaciones de antes de este cambio viven sueltas en "notas", donde las ve
+   cualquier cuenta. Hay que moverlas a notas/<cuenta>/items.
+
+   No se mueve nada solo: la app mira si quedó algo ahí, lo dice, y vos decidís.
+   Cada nota se COPIA primero y solo se borra la vieja cuando la copia existe: si
+   algo falla a mitad de camino no se pierde nada, y volver a tocar el botón
+   retoma donde quedó (la copia usa el mismo id, así que repetirla no duplica).
+
+   Solo la cuenta original mira ahí: es la única que llegó a tener notas sueltas.
+============================================================================= */
+var VIEJAS=null;                 /* null = no se sabe todavía · [] = no hay */
+var MUDANDO=false;
+function revisaNotasViejas(){
+  if(CUENTA!==CUENTA_ORIGINAL || !FB_OK || !SESION){ VIEJAS=[]; return; }
+  colNotasViejas().get().then(function(q){
+    var out=[];
+    q.forEach(function(d){ var v=d.data()||{}; out.push({id:d.id, d:v}); });
+    VIEJAS=out;
+    /* repinta SIEMPRE, también cuando ya no queda nada: si no, el aviso se
+       quedaría en pantalla después de mover la última. */
+    if(VISTA.tab==="registro") pinta();
+  }).catch(function(){ VIEJAS=[];        /* sin permiso = ya no existe ese lugar */
+    if(VISTA.tab==="registro") pinta(); });
+}
+function avisoMudanza(){
+  if(!VIEJAS || !VIEJAS.length) return "";
+  var n=VIEJAS.length;
+  return '<div class="caja"><div class="mudanza">'+
+    '<b>'+n+' anotaci'+(n===1?"ón está":"ones están")+' en el lugar viejo.</b> '+
+    'Ahí las ve cualquier cuenta que entre a la app. Moverlas a «'+esc(CUENTA)+
+    '» las deja donde solo las ve esta casa.'+
+    '<div class="pasos"><button data-acc="mudar-notas"'+(MUDANDO?" disabled":"")+'>'+
+      (MUDANDO? "Moviendo…" : "Mover "+(n===1?"la anotación":"las "+n))+'</button></div>'+
+    '<div class="sub">Se copian primero y se borran después, una por una. '+
+    'Si algo falla, nada se pierde: volvés a tocar y sigue donde quedó.</div>'+
+    '</div></div>';
+}
+function mudarNotas(){
+  if(MUDANDO || !VIEJAS || !VIEJAS.length) return;
+  MUDANDO=true; pinta();
+  var pend=VIEJAS.slice(), movidas=0, fallas=0;
+  function una(){
+    if(!pend.length){
+      MUDANDO=false;
+      toast(movidas+" movida"+(movidas===1?"":"s")+
+        (fallas? " · "+fallas+" no se pudo mover" : "")+".");
+      revisaNotasViejas(); pinta(); return;
+    }
+    var x=pend.shift();
+    /* mismo id: si esto se repite, sobrescribe en vez de duplicar */
+    colNotas().doc(x.id).set(x.d)
+      .then(function(){ return colNotasViejas().doc(x.id).delete(); })
+      .then(function(){ movidas++; una(); })
+      .catch(function(){ fallas++; una(); });
+  }
+  una();
 }
 </script>
 </body>

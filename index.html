@@ -196,6 +196,14 @@ main{padding:10px 12px 20px}
   margin-top:1px;color:var(--ok-tx)}
 .tj-d .vl.neg{color:var(--mal-tx)}
 .tj-d .pie-est{display:block;font-size:14.5px;color:var(--tx2);margin-top:3px}
+/* el renglón "registrado": lo que dice la nube sin las notas */
+.con-reg{display:block;font-size:14.5px;color:var(--tx2);margin-top:2px}
+.con-reg b{font-weight:650;color:var(--tx)}
+.nt .cb{background:none;border:0;color:var(--tx3);font-size:13.5px;padding:4px 0 4px 8px;
+  cursor:pointer;white-space:nowrap;text-decoration:underline}
+.nt.cub{opacity:.55}
+.nt.cub .m{text-decoration:line-through}
+.cubm{color:var(--tx3);font-weight:600}
 /* beneficios: el rubro a la izquierda, lo que le queda a ese rubro a la derecha */
 .bn{display:flex;align-items:baseline;gap:0 10px;flex-wrap:wrap;padding:7px 0;
   border-top:1px solid var(--tj-ln,var(--linea2))}
@@ -229,11 +237,6 @@ main{padding:10px 12px 20px}
   text-align:left;overflow-wrap:break-word}
 .formas button.on{background:var(--plan-bg);border-color:var(--plan-linea);
   color:var(--plan-tx);font-weight:650}
-.mudanza{margin:10px 12px;padding:12px 13px;border:1px solid var(--avi-linea);
-  background:var(--avi-bg);border-radius:9px;font-size:16px;color:var(--tx)}
-.mudanza b{font-weight:650}
-.mudanza .sub{font-size:14px;margin-top:8px}
-.mudanza .pasos{margin-top:10px}
 .nota{font-size:15.5px;color:var(--avi-tx);background:var(--avi-bg);
   border:1px solid var(--avi-linea);border-radius:7px;padding:5px 8px;margin-top:7px}
 .bene{font-size:17px;color:var(--tx2);margin-top:7px}
@@ -283,14 +286,16 @@ main{padding:10px 12px 20px}
 .blq span.m{font-weight:650;font-size:14.5px}
 
 /* ── notas ───────────────────────────────────────────────────────── */
-.nt{display:flex;gap:11px;align-items:baseline;padding:12px 13px;
+/* flex-wrap: con el botón de cubrir ya no entra todo en un renglón y sin esto
+   el monto y el texto se montan uno encima del otro. */
+.nt{display:flex;gap:4px 11px;align-items:baseline;flex-wrap:wrap;padding:12px 13px;
   border-bottom:1px solid var(--linea3)}
 .nt:last-child{border-bottom:0}
 .nt .f{font-size:15px;color:var(--tx3);white-space:nowrap;min-width:54px}
-.nt .q{flex:1;min-width:0}
+.nt .q{flex:1 1 55%;min-width:0;overflow-wrap:anywhere}
 .nt .q b{font-weight:500;font-size:19px}
 .nt .a{font-size:14.5px;color:var(--tx3);display:block;margin-top:1px}
-.nt .m{font-weight:650;font-size:19px;white-space:nowrap}
+.nt .m{font-weight:650;font-size:19px;white-space:nowrap;margin-left:auto}
 .nt .x{background:none;border:0;color:var(--tx3);font-size:19px;line-height:1;
   padding:3px 0 3px 8px;cursor:pointer}
 .buscar{width:100%;border:1px solid var(--linea);border-radius:9px;
@@ -514,9 +519,7 @@ function escucharEstado(alDato, alError){
    que se separa es una casa de la otra, no una persona de la otra.
 ----------------------------------------------------------------------------- */
 function colNotas(){ return db.collection("notas").doc(CUENTA).collection("items"); }
-/* El lugar viejo. Solo se usa para mover lo que quedó ahí, y solo desde la
-   cuenta original: es la única que tenía notas antes de este cambio. */
-function colNotasViejas(){ return db.collection("notas"); }
+
 
 /* Tres orígenes distintos, y no hay que confundirlos:
      deCache    · nuestra copia en el aparato, al abrir sin esperar a la nube
@@ -585,7 +588,9 @@ function suscribir(){
     var out=[];
     q.forEach(function(d){ var v=d.data()||{}; out.push({
       id:d.id, fecha:v.fecha||"", que:v.que||"", monto:+v.monto||0,
-      pago:v.pago||"", autor:v.autor||"", ts:+v.ts||0 }); });
+      pago:v.pago||"", cat:v.cat||"", k:v.k||"",
+      cubierta:v.cubierta===true, cubiertaTs:+v.cubiertaTs||0,
+      autor:v.autor||"", ts:+v.ts||0 }); });
     out.sort(function(a,b){
       if(a.fecha!==b.fecha) return a.fecha<b.fecha?1:-1;
       return b.ts-a.ts;
@@ -593,7 +598,6 @@ function suscribir(){
     NOTAS=out; ERRN="";
     if(VISTA.tab==="registro") pinta();
   }, function(e){ ERRN=(e&&e.code)||"error"; if(VISTA.tab==="registro") pinta(); });
-  revisaNotasViejas();
 }
 function desuscribir(){
   try{ if(desEstado) desEstado(); }catch(e){}
@@ -1521,6 +1525,54 @@ function squarify(datos,W,H){
   return out;
 }
 /* =============================================================================
+   LAS NOTAS COMO SEGUNDO NÚMERO
+   -----------------------------------------------------------------------------
+   Parado en una tienda, el disponible de una tarjeta y lo que queda de un rubro
+   mienten POR ABAJO: las compras de anteayer todavía no se pegaron del estado de
+   cuenta, y los cargos flotantes no se registran a propósito para no duplicar.
+   El número es correcto pero incompleto justo cuando más se necesita.
+
+   LAS NOTAS NO SON DINERO Y NO SE SUMAN A LOS MOVIMIENTOS. Se calcula un número
+   aparte, al mostrarlo, que no alimenta nada. La regla de hierro 1 no se toca.
+
+   DÓNDE SÍ Y DÓNDE NO — el límite es este y no se mueve:
+     SÍ  · disponible de la tarjeta  ·  lo que queda de un rubro
+           (los dos responden "cuánto margen me queda")
+     NO  · saldo real  ·  proyección  ·  cierres  ·  cotejo
+           (esos responden "cuánta plata hay", y ahí solo cuentan movimientos)
+
+   Si se olvida marcar una nota como cubierta, el número queda PESIMISTA: muestra
+   menos plata de la que hay, nunca más. El olvido hace gastar de menos.
+============================================================================= */
+/* Las que cuentan: de esta ventana y sin cubrir. */
+function notasVivas(notas,k){
+  return (notas||[]).filter(function(n){
+    return n && !n.cubierta && n.k===k && cts(n.monto)>0;
+  });
+}
+function notasTjC(notas,k,nombre){
+  var c=0, n=0;
+  notasVivas(notas,k).forEach(function(x){
+    if(!mismoPago(x.pago,nombre)) return;
+    c+=cts(x.monto); n++;
+  });
+  return {c:c, n:n};
+}
+/* Por rubro solo cuentan las que tienen rubro: sin `cat` no hay dónde ponerlas. */
+function notasRubroC(notas,k,cat){
+  var c=0, n=0;
+  notasVivas(notas,k).forEach(function(x){
+    if(!x.cat || clave(x.cat)!==clave(cat)) return;
+    c+=cts(x.monto); n++;
+  });
+  return {c:c, n:n};
+}
+/* Cuántas de esta ventana no tienen rubro: entran en el número de la tarjeta y
+   quedan fuera del de los rubros. Se dice, no se esconde. */
+function notasSinRubro(notas,k){
+  return notasVivas(notas,k).filter(function(x){ return !x.cat; }).length;
+}
+/* =============================================================================
    ¿ESTOY MIRANDO UN CORTE QUE YA PASÓ?
    -----------------------------------------------------------------------------
    Confundir el corte que ves con el corte que corre es el error que más caro
@@ -1546,7 +1598,8 @@ function estadoCorte(S,k,hoy){
 /* =============================================================================
    VISTA
 ============================================================================= */
-var VISTA={ tab:"rubros", k:null, rubro:null, verTodos:false, cierre:null, busca:"" };
+var VISTA={ tab:"rubros", k:null, rubro:null, verTodos:false, cierre:null, busca:"",
+            cubiertas:false };
 var TABS=[["rubros","Rubros"],["tarjetas","Tarjetas"],
           ["cierres","Cierres"],["registro","Registro"]];
 
@@ -1576,7 +1629,7 @@ var EX={
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
   corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto.<br><br>«Vence el» es la fecha máxima de pago <b>del corte que está abierto</b>: el primer día de pago que cae después de que ese corte cierre. Todavía no llega. La del corte anterior va abajo, junto a lo que se debe."],
   cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
-  registro:["Registro manual","Recordatorios sueltos para reconocer un cargo después en el estado de cuenta. No son movimientos: no suman, no restan y no aparecen en ningún total de ningún corte."],
+  registro:["Registro manual","Lo que comprás y todavía no aparece en el estado de cuenta. Sirve para que el <b>disponible</b> de la tarjeta y <b>lo que queda</b> de un rubro no te mientan por abajo mientras estás en la tienda.<br><br><b>No son movimientos.</b> No suman, no restan y no tocan el saldo real ni los cierres: ahí solo cuentan los movimientos de la app madre. Solo ensombrecen un margen, nunca un saldo.<br><br>Cuando la compra aparece en el estado de cuenta, marcala como <b>cubierta</b> y deja de contar (se puede deshacer). Si se te olvida, el número queda pesimista: te muestra menos plata de la que tenés, nunca más.<br><br>Cuentan solo las de este corte. Sin rubro, la anotación cuenta para la tarjeta pero no para ningún rubro."],
   cuenta:["La cuenta abierta","De quién son los números que estás viendo.<br><br>Cada cuenta tiene su propio documento en la nube y su propio PIN: no se cruzan, y el servidor no deja leer el de otra. El caché de este aparato también va separado por cuenta.<br><br>Se cambia desde ⋯ → Cuenta abierta, o desde la pantalla del PIN. Es una vez por aparato; después, solo el PIN."],
   estado:["De dónde viene lo que ves","Cuenta abierta: <b>"+esc(CUENTA)+"</b>.<br><br>EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
 };
@@ -1703,11 +1756,22 @@ function barra(){
 /* ---------- 1 · RUBROS ---------- */
 function filaRubro(r,mini){
   var pres=r.presC, gas=r.gastoC, q=r.quedaC;
+  /* Lo que queda de un rubro es un MARGEN, así que acá las notas sí entran: el
+     número grande las incluye y el registrado va debajo. El gastado y el
+     presupuesto no se tocan — esos son de los movimientos. */
+  var nt=notasRubroC(NOTAS,kAct(),r.cat);
+  var conNotas=(q!=null && nt.n>0);
+  var qn=conNotas? q-nt.c : q;
+  /* La barrita se queda con el GASTO REGISTRADO, no con las notas: al lado dice
+     "gastado L 0.00" y una barra con relleno se contradiría con eso. El efecto
+     de las notas ya está en el número grande y en su renglón. */
   var pct = (pres!=null&&pres>0)? Math.min(200,Math.round(gas/pres*100)) : null;
   return '<button class="rub'+(mini?" mini":"")+'" data-acc="rubro" data-v="'+esc(r.cat)+'">'+
     '<span class="r1"><span class="nom">'+esc(r.cat)+'</span>'+
-      '<span class="queda num'+(q!=null&&q<0?" neg":"")+'">'+
-        (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(q))+'</span></span>'+
+      '<span class="queda num'+(qn!=null&&qn<0?" neg":"")+'">'+
+        (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(qn))+'</span></span>'+
+    (conNotas? '<span class="con-reg">con notas &middot; registrado <b class="num">'+
+        fmtC(q)+'</b> &middot; '+nt.n+' nota'+(nt.n===1?"":"s")+' de '+fmtC(nt.c)+'</span>' : '')+
     '<span class="r2"><span class="gas">gastado '+fmtC(gas)+'</span>'+
       (pres!=null? '<span class="pre">de '+fmtC(pres)+'</span>' : '')+
       (r.n? '<span>'+r.n+' mov.</span>':'')+'</span>'+
@@ -1897,6 +1961,27 @@ function datosTj(t,cu,pl,va){
       ' sin cuotas cargadas: no se descuenta'+(cu.fin.sinDato.length===1?"":"n")+'</span></div>';
   return h;
 }
+/* El disponible. Con notas de esta ventana, el número GRANDE es el que las
+   incluye —siempre rotulado— y debajo va el registrado. Sin notas, un solo
+   número y ningún renglón de más: no se mete ruido los días que está al día. */
+function bloqueDisp(t,cu){
+  var nt=notasTjC(NOTAS,kAct(),t.nombre);
+  var con=cu.dispC-nt.c;
+  var pie='<span class="pie-est">'+fmtC(cu.limActC)+' de límite − '+
+    fmtC(cu.consumoC)+' de este corte'+
+    (cu.arrastreC>0? ' − '+fmtC(cu.arrastreC)+' sin pagar' : '')+
+    ' &middot; ver cuentas</span>';
+  if(!nt.n)
+    return '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+      '<span class="et">Disponible</span>'+
+      '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+pie+'</div>';
+  return '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
+    '<span class="et">Disponible con notas</span>'+
+    '<span class="vl num disp'+nSig(con)+'">'+fmtC(con)+'</span>'+
+    '<span class="con-reg">registrado <b class="num">'+fmtC(cu.dispC)+'</b>'+
+      ' &middot; '+nt.n+' nota'+(nt.n===1?"":"s")+' de '+fmtC(nt.c)+'</span>'+
+    pie+'</div>';
+}
 function vTarjetas(){
   var k=kAct(), tjs=tarjetasConCorte(S);
   if(!tjs.length) return '<div class="caja"><div class="vacio">No hay tarjetas con corte anotado en la libreta de la app madre.</div></div>';
@@ -1914,16 +1999,7 @@ function vTarjetas(){
         esc(txtCorte(pl))+'</span></div>'+
       datosTj(t,cu,pl,va)+
       /* 2 · cuánto queda de la tarjeta */
-      (cu.hay
-        ? '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
-            '<span class="et">Disponible</span>'+
-            '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+
-            '<span class="pie-est">'+fmtC(cu.limActC)+' de límite − '+
-              fmtC(cu.consumoC)+' de este corte'+
-              (cu.arrastreC>0? ' − '+fmtC(cu.arrastreC)+' sin pagar' : '')+
-              ' &middot; ver cuentas</span>'+
-          '</div>'
-        : '')+
+      (cu.hay? bloqueDisp(t,cu) : '')+
       /* 3 · en qué conviene usarla, y cuánto queda de ese rubro */
       bloqueBenes(S,k,t)+
       /* 4 · lo que carga este corte */
@@ -2167,20 +2243,40 @@ function pintaMapas(){
 
 /* ---------- 4 · REGISTRO MANUAL DE COMPRAS ---------- */
 function vRegistro(){
-  var q=norm(VISTA.busca||"");
-  var arr=NOTAS.filter(function(n){ return coincide(n,q); });
+  var q=norm(VISTA.busca||""), k=kAct();
+  /* Las cubiertas se esconden salvo que se pidan: ya no cuentan para nada. */
+  var arr=NOTAS.filter(function(n){
+    return coincide(n,q) && (VISTA.cubiertas || !n.cubierta);
+  });
+  var nCub=NOTAS.filter(function(n){ return n.cubierta; }).length;
+  var viv=notasVivas(NOTAS,k), tot=0;
+  viv.forEach(function(n){ tot+=cts(n.monto); });
+  var sinR=notasSinRubro(NOTAS,k);
   var h='<div class="caja"><div class="caja-t"><h2>Registro manual de compras</h2>'+
     '<span class="sp"></span><button class="lnk" data-acc="ex" data-ex="registro">qué es</button></div>'+
     '<div style="padding:10px 12px 12px">'+
       '<button class="bgrande" data-acc="nota-nueva">Anotar una compra</button>'+
-      '<div class="sub" style="margin-top:7px">Recordatorio suelto. No suma, no resta y no entra en ningún total. '+
-        'Firmando como <b>'+esc(nombreYo()||"sin nombre")+'</b> &middot; '+
-        '<button class="lnk" data-acc="nombre">cambiar</button></div>'+
+      (viv.length
+        ? '<div class="sub" style="margin-top:9px"><b>'+viv.length+' anotaci'+
+          (viv.length===1?"ón":"ones")+' de '+fmtC(tot)+'</b> descuentan del disponible de '+
+          'este corte'+(sinR? ' &middot; '+sinR+' sin rubro, que no descuentan de ningún rubro' : '')+
+          '. No tocan el saldo real ni los cierres.</div>'
+        : '<div class="sub" style="margin-top:7px">Recordatorio suelto que descuenta del '+
+          'disponible mientras la compra no aparezca en el estado de cuenta.</div>')+
+      '<div class="sub" style="margin-top:5px">Firmando como <b>'+esc(nombreYo()||"sin nombre")+'</b> &middot; '+
+        '<button class="lnk" data-acc="nombre">cambiar</button>'+
+        (nCub? ' &middot; <button class="lnk" data-acc="ver-cubiertas">'+
+          (VISTA.cubiertas? "ocultar" : "ver")+' '+nCub+' cubierta'+(nCub===1?"":"s")+'</button>' : '')+
+      '</div>'+
     '</div></div>';
   if(ERRN) h+='<div class="caja"><div class="nota" style="margin:10px 12px">'+
-      'No se pueden leer las anotaciones ('+esc(ERRN)+'). Si dice <b>permission-denied</b>, '+
-      'falta agregar <b>notas/{cuenta}/items</b> a las reglas de Firestore.</div></div>';
-  h+=avisoMudanza();
+      (ERRN==="permission-denied"
+        ? 'La nube no deja leer las anotaciones de esta cuenta. Falta publicar la regla de '+
+          '<b>notas/{cuenta}/items</b> en Firestore: consola de Firebase → Firestore Database → '+
+          'Reglas → pegar las del archivo <b>reglas_firestore.txt</b> → Publicar.<br><br>'+
+          'El resto de la app no depende de esto: los números siguen bien.'
+        : 'No se pueden leer las anotaciones ('+esc(ERRN)+').')+
+      '</div></div>';
   h+='<div class="caja"><div style="padding:10px 12px">'+
       '<input class="buscar" id="busca" placeholder="Buscar" value="'+esc(VISTA.busca||"")+'">'+
     '</div><div id="lista-notas">'+listaNotas(arr)+'</div></div>';
@@ -2188,15 +2284,27 @@ function vRegistro(){
 }
 function coincide(n,q){
   return !q || norm(n.que).indexOf(q)>=0 || norm(n.autor).indexOf(q)>=0 ||
-         norm(n.pago||"").indexOf(q)>=0 || (n.fecha||"").indexOf(q)>=0;
+         norm(n.pago||"").indexOf(q)>=0 || norm(n.cat||"").indexOf(q)>=0 ||
+         (n.fecha||"").indexOf(q)>=0;
 }
 function listaNotas(arr){
   if(!arr.length) return '<div class="vacio">'+(NOTAS.length? "Ninguna anotación coincide." : "Todavía no hay anotaciones.")+'</div>';
+  var k=kAct();
   return arr.map(function(n){
-    return '<div class="nt"><span class="f num">'+esc(fmtF(n.fecha))+'</span>'+
+    var otra=(n.k && n.k!==k);
+    return '<div class="nt'+(n.cubierta?" cub":"")+'"><span class="f num">'+esc(fmtF(n.fecha))+'</span>'+
       '<span class="q"><b>'+esc(n.que||"—")+'</b>'+
-        '<span class="a">'+esc([n.pago,n.autor].filter(Boolean).join(" · ")||"—")+'</span></span>'+
+        '<span class="a">'+esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
+          (n.cubierta? ' &middot; <b class="cubm">cubierta</b>' : '')+
+          (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
+          (!n.cat && !n.cubierta? ' &middot; <span class="cubm">sin rubro</span>' : '')+
+        '</span></span>'+
       '<span class="m num">'+fmtC(cts(n.monto))+'</span>'+
+      '<button class="cb" data-acc="'+(n.cubierta?"nota-descubrir":"nota-cubrir")+'" data-v="'+esc(n.id)+'" '+
+        'title="'+(n.cubierta
+          ? "Vuelve a contar en el disponible y en su rubro."
+          : "Ya apareció en el estado de cuenta: deja de contar. Se puede deshacer.")+'">'+
+        (n.cubierta? "deshacer" : "cubierta")+'</button>'+
       '<button class="x" data-acc="nota-borrar" data-v="'+esc(n.id)+'" title="Borrar la anotación">×</button></div>';
   }).join("");
 }
@@ -2257,7 +2365,6 @@ document.addEventListener("click", function(e){
   if(acc==="tab"){ VISTA.tab=v; VISTA.cierre=null; cierraHoja(); window.scrollTo(0,0); pinta(); return; }
   if(acc==="bloquear"){ bloquear(); return; }
   if(acc==="ver-actual"){ VISTA.k=v; VISTA.cierre=null; pinta(); return; }
-  if(acc==="mudar-notas"){ mudarNotas(); return; }
   if(acc==="cambiar-cuenta"){ cierraHoja(); bloquear(); setTimeout(pedirCuenta,120); return; }
   if(acc==="esc"){ cambiaEscala(v==="+"? 0.1 : -0.1); return; }
   if(acc==="ex"){ explica(t.getAttribute("data-ex")); return; }
@@ -2288,7 +2395,11 @@ document.addEventListener("click", function(e){
   }
   if(acc==="nota-nueva"){ NOTA={fecha:hoyISO(), que:"", monto:"", pago:""}; notaPaso(1); return; }
   if(acc==="nota-paso"){ notaPaso(+v); return; }
+  if(acc==="nota-cat"){ NOTA.cat=v||""; notaPaso(5); return; }
   if(acc==="nota-forma"){ guardaNota(v); return; }
+  if(acc==="nota-cubrir"){ cubreNota(v,true); return; }
+  if(acc==="nota-descubrir"){ cubreNota(v,false); return; }
+  if(acc==="ver-cubiertas"){ VISTA.cubiertas=!VISTA.cubiertas; pinta(); return; }
   if(acc==="tj-gasto"){ hojaGastoTj(v); return; }
   if(acc==="tj-cupo"){ hojaCupoTj(v); return; }
   if(acc==="tj-ics"){ bajaIcs(v); return; }
@@ -2372,7 +2483,7 @@ function pedirNombre(puedeCancelar){
    no se toca jamás. Una nota es un recordatorio: no suma, no resta y no entra
    en ningún total de ningún corte.
 ============================================================================= */
-var NOTA={fecha:"",que:"",monto:"",pago:""};
+var NOTA={fecha:"",que:"",monto:"",pago:"",cat:""};
 function leeCampo(id){ var e=document.getElementById(id); return e? e.value : ""; }
 /* Cuatro pasos, uno por pantalla. Las hojas con campo de texto se anclan ARRIBA:
    abajo el teclado del celular las tapa. */
@@ -2382,31 +2493,50 @@ function notaPaso(n){
   if(n>=4) NOTA.monto=leeCampo("nMonto")||NOTA.monto;
   var h,foco;
   if(n===1){
-    h='<h3>¿Qué día fue?</h3><div class="hsub">Paso 1 de 4</div>'+
+    h='<h3>¿Qué día fue?</h3><div class="hsub">Paso 1 de 5</div>'+
       '<div class="paso"><input id="nFecha" type="date" value="'+esc(NOTA.fecha||hoyISO())+'"></div>'+
       '<div class="pasos"><button data-acc="cerrar-hoja">Cancelar</button>'+
         '<button class="pri" data-acc="nota-paso" data-v="2">Siguiente</button></div>';
   }else if(n===2){
-    h='<h3>¿Qué compraste?</h3><div class="hsub">Paso 2 de 4 &middot; '+esc(fmtFL(NOTA.fecha))+'</div>'+
+    h='<h3>¿Qué compraste?</h3><div class="hsub">Paso 2 de 5 &middot; '+esc(fmtFL(NOTA.fecha))+'</div>'+
       '<div class="paso"><input id="nQue" maxlength="80" placeholder="Titán · aceite" value="'+esc(NOTA.que)+'"></div>'+
       '<div class="pasos"><button data-acc="nota-paso" data-v="1">Atrás</button>'+
         '<button class="pri" data-acc="nota-paso" data-v="3">Siguiente</button></div>';
     foco="nQue";
   }else if(n===3){
-    h='<h3>¿Cuánto?</h3><div class="hsub">Paso 3 de 4 &middot; '+esc(NOTA.que||"—")+'</div>'+
+    h='<h3>¿Cuánto?</h3><div class="hsub">Paso 3 de 5 &middot; '+esc(NOTA.que||"—")+'</div>'+
       '<div class="paso"><input id="nMonto" inputmode="decimal" placeholder="850.00" value="'+esc(NOTA.monto)+'"></div>'+
       '<div class="pasos"><button data-acc="nota-paso" data-v="2">Atrás</button>'+
         '<button class="pri" data-acc="nota-paso" data-v="4">Siguiente</button></div>';
     foco="nMonto";
+  }else if(n===4){
+    /* EL RUBRO. Sin él, la nota vale para el número de la tarjeta pero queda
+       fuera del de los rubros, que es la mitad de lo que sirve. Se puede
+       saltar, pero se ofrece. La lista sale de la madre, en SU orden: el texto
+       tiene que ser idéntico o la nota no cruza con nada. */
+    var rs=(S&&S.catE&&S.catE.length)? S.catE : [];
+    h='<h3>¿De qué rubro?</h3><div class="hsub">Paso 4 de 5 &middot; '+
+      esc(NOTA.que||"—")+' &middot; '+fmtC(cts(parseFloat(String(NOTA.monto).replace(/[^0-9.\-]/g,""))||0))+'</div>'+
+      (rs.length
+        ? '<div class="formas">'+rs.map(function(c){
+            return '<button data-acc="nota-cat" data-v="'+esc(c)+'"'+
+              (clave(c)===clave(NOTA.cat)?' class="on"':'')+'>'+esc(c)+'</button>'; }).join("")+
+          '<button data-acc="nota-cat" data-v="">Sin rubro</button></div>'
+        : '<div class="vacio">La app madre todavía no tiene rubros de egreso.</div>'+
+          '<div class="formas"><button data-acc="nota-cat" data-v="">Seguir sin rubro</button></div>')+
+      '<div class="sub" style="margin-top:8px">Sin rubro la anotación igual cuenta '+
+        'para el disponible de la tarjeta; lo que no hace es descontar de un rubro.</div>'+
+      '<div class="pasos"><button data-acc="nota-paso" data-v="3">Atrás</button></div>';
   }else{
     var fs=formasDe(S||{});
-    h='<h3>¿Con qué pagaste?</h3><div class="hsub">Paso 4 de 4 &middot; '+
-      esc(NOTA.que||"—")+' &middot; '+fmtC(cts(parseFloat(String(NOTA.monto).replace(/[^0-9.\-]/g,""))||0))+'</div>'+
+    h='<h3>¿Con qué pagaste?</h3><div class="hsub">Paso 5 de 5 &middot; '+
+      esc(NOTA.que||"—")+' &middot; '+fmtC(cts(parseFloat(String(NOTA.monto).replace(/[^0-9.\-]/g,""))||0))+
+      (NOTA.cat? ' &middot; '+esc(NOTA.cat) : '')+'</div>'+
       '<div class="formas">'+fs.map(function(f){
         return '<button data-acc="nota-forma" data-v="'+esc(f)+'"'+
           (clave(f)===clave(NOTA.pago)?' class="on"':'')+'>'+esc(f)+'</button>'; }).join("")+
         '<button data-acc="nota-forma" data-v="">Sin especificar</button></div>'+
-      '<div class="pasos"><button data-acc="nota-paso" data-v="3">Atrás</button></div>';
+      '<div class="pasos"><button data-acc="nota-paso" data-v="4">Atrás</button></div>';
   }
   abreHoja(h, n>=2 && n<=3);
   if(foco) setTimeout(function(){ var i2=document.getElementById(foco);
@@ -2419,12 +2549,24 @@ function guardaNota(forma){
   if(isNaN(m)){ toast("Falta el monto"); notaPaso(3); return; }
   if(!NOTA.que){ toast("Falta qué compraste"); notaPaso(2); return; }
   if(!FB_OK || !SESION){ toast("Sin sesión: no se guardó"); return; }
+  /* La ventana se estampa AL ANOTAR, no se deduce después de la fecha: una
+     ventana es un mosaico de fechas de corte, no un rango, y la misma compra
+     cae en una ventana con una tarjeta y en la siguiente con otra (regla 4). */
   var d={ fecha:NOTA.fecha||hoyISO(), que:NOTA.que, monto:red(m), pago:NOTA.pago,
+          cat:NOTA.cat||"", k:kAct(),
+          cubierta:false, cubiertaTs:null,
           autor:nombreYo()||"sin nombre", ts:Date.now() };
   cierraHoja();
   colNotas().add(d)
-    .then(function(){ toast("Anotado"); })
+    .then(function(){ toast(NOTA.cat? "Anotado" : "Anotado, sin rubro"); })
     .catch(function(e){ toast("No se pudo guardar: "+((e&&e.code)||"error")); });
+}
+/* Cubrir es una MARCA, no un borrado: se puede deshacer. La pone él acá, o la
+   app madre al pegar un estado de cuenta que ya trae esa compra. */
+function cubreNota(id,val){
+  colNotas().doc(id).update({cubierta:!!val, cubiertaTs: val? Date.now() : null})
+    .then(function(){ toast(val? "Cubierta" : "Vuelve a contar"); })
+    .catch(function(e){ toast("No se pudo: "+((e&&e.code)||"error")); });
 }
 /* Borrar en dos toques, sin cuadro de diálogo del navegador. */
 function pideBorrar(bt,id){
@@ -2443,66 +2585,6 @@ function borraNota(id){
     .catch(function(e){ toast("No se pudo borrar: "+((e&&e.code)||"error")); });
 }
 
-/* =============================================================================
-   MUDANZA DE LAS NOTAS VIEJAS
-   -----------------------------------------------------------------------------
-   Las anotaciones de antes de este cambio viven sueltas en "notas", donde las ve
-   cualquier cuenta. Hay que moverlas a notas/<cuenta>/items.
-
-   No se mueve nada solo: la app mira si quedó algo ahí, lo dice, y vos decidís.
-   Cada nota se COPIA primero y solo se borra la vieja cuando la copia existe: si
-   algo falla a mitad de camino no se pierde nada, y volver a tocar el botón
-   retoma donde quedó (la copia usa el mismo id, así que repetirla no duplica).
-
-   Solo la cuenta original mira ahí: es la única que llegó a tener notas sueltas.
-============================================================================= */
-var VIEJAS=null;                 /* null = no se sabe todavía · [] = no hay */
-var MUDANDO=false;
-function revisaNotasViejas(){
-  if(CUENTA!==CUENTA_ORIGINAL || !FB_OK || !SESION){ VIEJAS=[]; return; }
-  colNotasViejas().get().then(function(q){
-    var out=[];
-    q.forEach(function(d){ var v=d.data()||{}; out.push({id:d.id, d:v}); });
-    VIEJAS=out;
-    /* repinta SIEMPRE, también cuando ya no queda nada: si no, el aviso se
-       quedaría en pantalla después de mover la última. */
-    if(VISTA.tab==="registro") pinta();
-  }).catch(function(){ VIEJAS=[];        /* sin permiso = ya no existe ese lugar */
-    if(VISTA.tab==="registro") pinta(); });
-}
-function avisoMudanza(){
-  if(!VIEJAS || !VIEJAS.length) return "";
-  var n=VIEJAS.length;
-  return '<div class="caja"><div class="mudanza">'+
-    '<b>'+n+' anotaci'+(n===1?"ón está":"ones están")+' en el lugar viejo.</b> '+
-    'Ahí las ve cualquier cuenta que entre a la app. Moverlas a «'+esc(CUENTA)+
-    '» las deja donde solo las ve esta casa.'+
-    '<div class="pasos"><button data-acc="mudar-notas"'+(MUDANDO?" disabled":"")+'>'+
-      (MUDANDO? "Moviendo…" : "Mover "+(n===1?"la anotación":"las "+n))+'</button></div>'+
-    '<div class="sub">Se copian primero y se borran después, una por una. '+
-    'Si algo falla, nada se pierde: volvés a tocar y sigue donde quedó.</div>'+
-    '</div></div>';
-}
-function mudarNotas(){
-  if(MUDANDO || !VIEJAS || !VIEJAS.length) return;
-  MUDANDO=true; pinta();
-  var pend=VIEJAS.slice(), movidas=0, fallas=0;
-  function una(){
-    if(!pend.length){
-      MUDANDO=false;
-      toast(movidas+" movida"+(movidas===1?"":"s")+
-        (fallas? " · "+fallas+" no se pudo mover" : "")+".");
-      revisaNotasViejas(); pinta(); return;
-    }
-    var x=pend.shift();
-    /* mismo id: si esto se repite, sobrescribe en vez de duplicar */
-    colNotas().doc(x.id).set(x.d)
-      .then(function(){ return colNotasViejas().doc(x.id).delete(); })
-      .then(function(){ movidas++; una(); })
-      .catch(function(){ fallas++; una(); });
-  }
-  una();
-}
 </script>
 </body>
 </html>

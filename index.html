@@ -1644,7 +1644,9 @@ function pinta(){
   var cuerpo;
   if(!S) cuerpo='<div class="caja"><div class="vacio">'+
     (FUENTE==="mal"? "No se pudo leer la nube"+(ERR?" ("+esc(ERR)+")":"")+"."
-     : FUENTE==="vacio"? "El documento de la app madre está vacío."
+     : FUENTE==="vacio"? (CUENTA===CUENTA_ORIGINAL
+         ? "El documento de la app madre está vacío."
+         : "La cuenta «"+esc(CUENTA)+"» todavía no tiene datos. Se llenan solos en cuanto la app madre guarde con esta cuenta abierta.")
      : "Esperando el primer dato…")+'</div></div>';
   else if(VISTA.tab==="rubros")   cuerpo=vRubros();
   else if(VISTA.tab==="tarjetas") cuerpo=vTarjetas();

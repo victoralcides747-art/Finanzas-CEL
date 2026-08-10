@@ -199,8 +199,21 @@ main{padding:10px 12px 20px}
 /* el renglón "registrado": lo que dice la nube sin las notas */
 .con-reg{display:block;font-size:14.5px;color:var(--tx2);margin-top:2px}
 .con-reg b{font-weight:650;color:var(--tx)}
-.nt .cb{background:none;border:0;color:var(--tx3);font-size:13.5px;padding:4px 0 4px 8px;
-  cursor:pointer;white-space:nowrap;text-decoration:underline}
+/* Los dos botones tienen que distinguirse de un vistazo y sin leer: CUBRIR es
+   una casilla (caja, gris, se marca y se desmarca) y BORRAR es una × pelada en
+   rojo. Distinta forma, distinto color, y un hueco entre las dos. */
+.nt .cb{flex:0 0 auto;width:30px;height:30px;padding:0;cursor:pointer;
+  border:1px solid var(--linea);border-radius:7px;background:var(--card);
+  color:var(--tx2);font-size:17px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+.nt.cub .cb{border-color:var(--tx3);background:var(--linea2)}
+.nt .x{flex:0 0 auto;min-width:26px;height:30px;padding:0 2px;cursor:pointer;
+  background:none;border:0;color:var(--mal-tx);opacity:.7;font-size:22px;line-height:1;
+  display:flex;align-items:center;justify-content:center}
+/* Confirmar NO puede ensanchar el botón: si crece, le roba ancho al nombre y lo
+   parte a la mitad de una palabra. Misma caja, relleno rojo — se entiende que
+   está armado — y el aviso lo dice con todas las letras. */
+.nt .x.pide{opacity:1;color:#fff;background:var(--mal-tx);border-radius:7px}
 .nt.cub{opacity:.55}
 .nt.cub .m{text-decoration:line-through}
 .cubm{color:var(--tx3);font-weight:600}
@@ -286,18 +299,38 @@ main{padding:10px 12px 20px}
 .blq span.m{font-weight:650;font-size:14.5px}
 
 /* ── notas ───────────────────────────────────────────────────────── */
-/* flex-wrap: con el botón de cubrir ya no entra todo en un renglón y sin esto
-   el monto y el texto se montan uno encima del otro. */
-.nt{display:flex;gap:4px 11px;align-items:baseline;flex-wrap:wrap;padding:12px 13px;
+/* Un movimiento = UN renglón. Rejilla, no flex: una columna de rejilla no se
+   cae de línea, y `minmax(0,1fr)` deja que la del texto se achique en vez de
+   empujar los botones hacia abajo. Con flex dependía del ancho mínimo del
+   contenido y la × terminaba en otra línea.
+
+   Los botones van arriba a la derecha, a la altura del monto, y el detalle de
+   abajo se lleva el ancho ENTERO del renglón. Probado al revés —botones
+   centrados sobre las dos filas— y salía peor: le comían al detalle 84 px y lo
+   partían en tres líneas. */
+#lista-notas{container-type:inline-size}
+.nt{display:grid;grid-template-columns:minmax(0,1fr) auto;
+  grid-template-areas:"q ac" "a a";
+  align-items:start;gap:1px 9px;padding:10px 13px;
   border-bottom:1px solid var(--linea3)}
 .nt:last-child{border-bottom:0}
-.nt .f{font-size:15px;color:var(--tx3);white-space:nowrap;min-width:54px}
-.nt .q{flex:1 1 55%;min-width:0;overflow-wrap:anywhere}
-.nt .q b{font-weight:500;font-size:19px}
-.nt .a{font-size:14.5px;color:var(--tx3);display:block;margin-top:1px}
-.nt .m{font-weight:650;font-size:19px;white-space:nowrap;margin-left:auto}
-.nt .x{background:none;border:0;color:var(--tx3);font-size:19px;line-height:1;
-  padding:3px 0 3px 8px;cursor:pointer}
+/* La fecha va con el detalle, no en su propia columna: en un celular esa columna
+   le comía al nombre el ancho que necesita para no partirse en dos. */
+.nt .f{color:var(--tx2);white-space:nowrap}
+.nt .q{grid-area:q;min-width:0;display:flex;align-items:baseline;
+  justify-content:space-between;gap:0 9px}
+.nt .q b{font-weight:500;font-size:19px;min-width:0;overflow-wrap:anywhere}
+.nt .m{flex:0 0 auto;font-weight:650;font-size:19px;white-space:nowrap}
+.nt .a{grid-area:a;font-size:14.5px;color:var(--tx3);overflow-wrap:anywhere;margin-top:2px}
+.nt .ac{grid-area:ac;display:flex;align-items:center;gap:0 13px}
+/* A letra muy grande ya no cabe ni achicando el texto. Entonces los botones
+   bajan JUNTOS a su propia línea, pegados a la derecha: siguen siendo el par y
+   la × nunca queda suelta ni debajo de la casilla. */
+@container (max-width: 215px){
+  .nt{grid-template-columns:minmax(0,1fr);
+      grid-template-areas:"q" "a" "ac"}
+  .nt .ac{justify-content:flex-end;margin-top:5px}
+}
 .buscar{width:100%;border:1px solid var(--linea);border-radius:9px;
   padding:13px 12px;font-size:18.5px;outline:none;background:var(--card)}
 .buscar:focus{border-color:var(--plan)}
@@ -2294,20 +2327,24 @@ function listaNotas(arr){
   var k=kAct();
   return arr.map(function(n){
     var otra=(n.k && n.k!==k);
-    return '<div class="nt'+(n.cubierta?" cub":"")+'"><span class="f num">'+esc(fmtF(n.fecha))+'</span>'+
+    return '<div class="nt'+(n.cubierta?" cub":"")+'">'+
       '<span class="q"><b>'+esc(n.que||"—")+'</b>'+
-        '<span class="a">'+esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
-          (n.cubierta? ' &middot; <b class="cubm">cubierta</b>' : '')+
-          (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
-          (!n.cat && !n.cubierta? ' &middot; <span class="cubm">sin rubro</span>' : '')+
-        '</span></span>'+
-      '<span class="m num">'+fmtC(cts(n.monto))+'</span>'+
+        '<span class="m num">'+fmtC(cts(n.monto))+'</span></span>'+
+      '<span class="a"><span class="f num">'+esc(fmtF(n.fecha))+'</span> &middot; '+
+        esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
+        (n.cubierta? ' &middot; <b class="cubm">cubierta</b>' : '')+
+        (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
+        (!n.cat && !n.cubierta? ' &middot; <span class="cubm">sin rubro</span>' : '')+
+      '</span>'+
+      '<span class="ac">'+
       '<button class="cb" data-acc="'+(n.cubierta?"nota-descubrir":"nota-cubrir")+'" data-v="'+esc(n.id)+'" '+
+        'aria-label="'+(n.cubierta?"deshacer":"dar por cubierta")+'" '+
         'title="'+(n.cubierta
-          ? "Vuelve a contar en el disponible y en su rubro."
-          : "Ya apareció en el estado de cuenta: deja de contar. Se puede deshacer.")+'">'+
-        (n.cubierta? "deshacer" : "cubierta")+'</button>'+
-      '<button class="x" data-acc="nota-borrar" data-v="'+esc(n.id)+'" title="Borrar la anotación">×</button></div>';
+          ? "Cubierta: ya está en el estado de cuenta, así que dejó de descontar. Tocá para que vuelva a contar."
+          : "Dala por cubierta cuando el cargo ya aparezca en el estado de cuenta: deja de descontar y no se cuenta dos veces. Se puede deshacer.")+'">'+
+        (n.cubierta? "&#10003;" : "")+'</button>'+
+      '<button class="x" data-acc="nota-borrar" data-v="'+esc(n.id)+'" '+
+        'title="Borrar la anotación. Esto no es lo mismo que cubrirla: borrar la desaparece.">×</button></span></div>';
   }).join("");
 }
 
@@ -2574,12 +2611,12 @@ function cubreNota(id,val){
 function pideBorrar(bt,id){
   var otros=document.querySelectorAll('[data-acc="nota-borrar-ok"]');
   for(var i=0;i<otros.length;i++){
-    otros[i].setAttribute("data-acc","nota-borrar"); otros[i].textContent="×";
-    otros[i].style.color=""; otros[i].style.fontSize="";
+    otros[i].setAttribute("data-acc","nota-borrar");
+    otros[i].className="x"; otros[i].title="Borrar la anotación.";
   }
   bt.setAttribute("data-acc","nota-borrar-ok");
-  bt.textContent="borrar";
-  bt.style.color="var(--mal-tx)"; bt.style.fontSize="12px";
+  bt.className="x pide"; bt.title="Tocá otra vez para borrarla.";
+  toast("Tocá la × otra vez para borrar");
 }
 function borraNota(id){
   colNotas().doc(id).delete()

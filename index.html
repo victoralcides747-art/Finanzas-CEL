@@ -245,11 +245,48 @@ main{padding:10px 12px 20px}
 .cta.tot .v{font-size:22px;font-weight:700}
 .cta.tot.fin .v{color:var(--ok-tx)}
 .formas{display:flex;flex-wrap:wrap;gap:9px;margin:2px 0}
-.formas button{flex:1 1 44%;min-width:0;background:var(--card2);border:1px solid var(--linea);
-  border-radius:11px;padding:15px 12px;font-size:17.5px;color:var(--tx);cursor:pointer;
-  text-align:left;overflow-wrap:break-word}
-.formas button.on{background:var(--plan-bg);border-color:var(--plan-linea);
+/* flex-basis auto + min-width 44%: los nombres cortos se emparejan de a dos y
+   uno largo como "Entretenimiento" se lleva la fila entera en vez de partirse a
+   la mitad de la palabra. max-width para que ninguno se salga. */
+.formas button{flex:1 1 auto;min-width:30%;max-width:100%;background:var(--card2);border:1px solid var(--linea);
+  border-radius:11px;padding:15px 10px;font-size:17.5px;color:var(--tx);cursor:pointer;
+  text-align:left;overflow-wrap:break-word;
+  /* "Entretenimiento" no cabe en media columna y se partía en "Entretenimie/nto".
+     Con guiones corta donde corresponde; si el navegador no sabe, vuelve a lo
+     de antes y no se rompe nada. */
+  hyphens:auto;-webkit-hyphens:auto}
+/* Realce del paso del rubro: un mismo tono cálido en tres intensidades, no tres
+   colores distintos — así se lee como "cuánto peso tiene" y no como un semáforo.
+   El azul queda libre para .on, que es la selección: se distingue de cualquier
+   nivel. El realce no cambia el orden ni ningún número.
+
+   La escala tiene que ser MONÓTONA en las cuatro cosas a la vez —fondo, borde,
+   texto y peso— y siempre hacia arriba desde el rubro sin realce. Un primer
+   intento dejó el nivel 3 más pálido que un rubro sin realce: se leía como
+   apagado en vez de como realzado, justo al revés de lo pedido. */
+.formas button.nv1{background:#f0dcc0;border-color:#c68b3a;color:#6f3708;font-weight:700}
+.formas button.nv2{background:#f7ead9;border-color:#dcb684;color:#8a5210;font-weight:600}
+.formas button.nv3{background:#fbf6ef;border-color:#e8d6bf;color:#4a3a24;font-weight:500}
+.formas button.on,.formas button.on.nv1,.formas button.on.nv2,.formas button.on.nv3{
+  background:var(--plan-bg);border-color:var(--plan-linea);
   color:var(--plan-tx);font-weight:650}
+/* LA VIÑETA. Va pegada al nombre del rubro, en cualquier pantalla donde aparezca
+   un rubro. Mismo tono cálido en tres intensidades, monótono: nivel 1 el más
+   oscuro. No lleva texto ni forma distinta — no es un badge, es una marca. */
+.vn{display:inline-block;width:10px;height:10px;border-radius:3px;
+  margin-right:7px;flex:0 0 auto;vertical-align:baseline}
+.vn1{background:#a86a12}
+.vn2{background:#cfa063}
+.vn3{background:#e8d2ac}
+/* editor de viñetas: un renglón por rubro, se toca y cambia */
+.vfila{display:flex;align-items:center;gap:0 11px;width:100%;text-align:left;
+  background:var(--card2);border:1px solid var(--linea);border-radius:11px;
+  padding:13px 12px;margin-bottom:8px;cursor:pointer;font-size:17.5px;color:var(--tx)}
+.vfila .vmuestra{flex:0 0 auto;display:flex;align-items:center}
+.vfila .vmuestra .vn{width:18px;height:18px;border-radius:5px;margin:0}
+.vfila .vn0{background:transparent;border:1px dashed var(--linea)}
+.vfila .vnom{flex:1 1 auto;min-width:0;overflow-wrap:break-word}
+.vfila .vniv{flex:0 0 auto;font-size:14.5px;color:var(--tx3);white-space:nowrap}
 .nota{font-size:15.5px;color:var(--avi-tx);background:var(--avi-bg);
   border:1px solid var(--avi-linea);border-radius:7px;padding:5px 8px;margin-top:7px}
 .bene{font-size:17px;color:var(--tx2);margin-top:7px}
@@ -491,6 +528,7 @@ var LL = {
   nom:  llaveCuenta("finanzasSatelite_nombre"),  /* nombre corto de quien usa el aparato */
   int:  llaveCuenta("finanzasSatelite_interes"), /* rubros de interés */
   entro:llaveCuenta("finanzasSatelite_entro"),   /* ya entró con PIN alguna vez */
+  rlc:  llaveCuenta("finanzasSatelite_realce"),  /* realce de cada rubro · de QUIEN usa este aparato */
   esc:  "finanzasSatelite_escala"                /* tamaño de letra · del APARATO */
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -822,6 +860,7 @@ var ARRANCO=false;
 function arrancarVista(){
   if(ARRANCO) return; ARRANCO=true;
   ocultarPIN();
+  cargaRealce();   /* antes del primer pinta: si no, se dibuja con lo dictado y parpadea */
   pinta();
   latido();
   if(!lsGet(LL.nom)) setTimeout(function(){ pedirNombre(false); }, 400);
@@ -1503,6 +1542,46 @@ var BENE_RUBRO={
   "gasolinera":   "Combustible",
   "educacion":    "Escuela"
 };
+/* REALCE DE LOS RUBROS · tres niveles. Es una VIÑETA al lado del nombre, no un
+   tinte sobre las cifras: el color de los números ya está hablando (azul lo
+   presupuestado, naranja lo gastado, verde lo disponible, rojo lo excedido) y un
+   color libre por rubro se le montaría encima. La viñeta va pegada al NOMBRE,
+   así que no compite con nada.
+
+   Es de QUIEN USA EL APARATO, no de la cuenta: se guarda en localStorage y no
+   sube a la nube. Dos personas de la misma casa comparten datos y notas, y cada
+   una ve sus propias viñetas. Nunca toca un número ni reordena una lista.
+
+   Estos son los que él dictó, y son solo el punto de partida: se pueden cambiar
+   uno por uno desde ⋯ → Viñetas de los rubros. */
+var RUB_REALCE_DICHO={
+  1:["Despensa","Combustible","Comida rápida"],
+  2:["Farmacia","Gusto culposo","Niños no urgencia"],
+  3:["Entretenimiento","Intrínsecos","Mantenimiento casa","Salud estética",
+     "Viajes paseos","Escuela","Regalos","Vestimenta"]
+};
+/* Se indexa por raizPal, igual que los beneficios: así "Niños" y "Niño" o
+   "Regalo" y "Regalos" caen en el mismo lugar sin escribirlos dos veces. Si un
+   rubro se renombra en la madre y ya no calza, lo único que pasa es que pierde
+   la viñeta: no se rompe nada. */
+function mapaDicho(){
+  var m={};
+  [1,2,3].forEach(function(n){
+    RUB_REALCE_DICHO[n].forEach(function(c){ m[raizPal(c)]=n; });
+  });
+  return m;
+}
+var RUB_REALCE=mapaDicho();
+/* Lo que está eligiendo esta persona. Arranca en lo dictado y el aparato lo
+   reemplaza al abrir si hay algo guardado. Se pasa aparte para poder probarlo. */
+var REALCE=RUB_REALCE;
+function realceRubro(c,m){
+  var k=raizPal(c);
+  if(!k) return 0;
+  return (m||REALCE)[k] || 0;
+}
+/* 0 → 3 → 2 → 1 → 0. Da la vuelta, así un toque de más no deja a nadie atrapado. */
+function siguienteRealce(n){ return n===0? 3 : n===3? 2 : n===2? 1 : 0; }
 /* EL RUBRO DEL BENEFICIO: el beneficio dice "Farmacias" y el rubro "Farmacia" →
    cruzan solos. "Supermercados" y "Despensa" solo cruzan por la tabla de arriba.
    Si no cruza por ninguna vía, no se muestra cifra. */
@@ -1641,6 +1720,31 @@ function interes(){
   try{ var a=JSON.parse(lsGet(LL.int)||"[]"); return Array.isArray(a)?a:[]; }catch(e){ return []; }
 }
 function guardaInteres(a){ lsSet(LL.int, JSON.stringify(a)); }
+/* ---------- viñetas de los rubros · de quien usa este aparato ----------
+   Vive en el aparato, como el tamaño de letra y los rubros de interés. No sube a
+   la nube, no toca el documento de la madre y no se comparte entre las dos
+   personas de la casa: esa es justamente la gracia. */
+function cargaRealce(){
+  var m=null;
+  try{ m=JSON.parse(lsGet(LL.rlc)||"null"); }catch(e){ m=null; }
+  /* Sin nada guardado se arranca con lo dictado. Guardado vacío ({}) es una
+     elección válida —"ninguna viñeta"— y hay que respetarla, no repoblarla. */
+  REALCE = (m && typeof m==="object" && !Array.isArray(m))? m : mapaDicho();
+}
+function guardaRealce(m){ REALCE=m; lsSet(LL.rlc, JSON.stringify(m)); }
+function cicloRealce(cat){
+  var m={}, k;
+  for(k in REALCE) if(Object.prototype.hasOwnProperty.call(REALCE,k)) m[k]=REALCE[k];
+  var kk=raizPal(cat); if(!kk) return;
+  var n=siguienteRealce(realceRubro(cat));
+  if(n) m[kk]=n; else delete m[kk];
+  guardaRealce(m);
+}
+/* La viñeta. Un cuadrito antes del nombre; sin nivel, nada — ni un hueco. */
+function vin(cat){
+  var n=realceRubro(cat);
+  return n? '<i class="vn vn'+n+'" aria-hidden="true"></i>' : '';
+}
 function kAct(){
   if(!S) return "";
   var v=ventanasOrd(S);
@@ -1802,7 +1906,7 @@ function filaRubro(r,mini){
      de las notas ya está en el número grande y en su renglón. */
   var pct = (pres!=null&&pres>0)? Math.min(200,Math.round(gas/pres*100)) : null;
   return '<button class="rub'+(mini?" mini":"")+'" data-acc="rubro" data-v="'+esc(r.cat)+'">'+
-    '<span class="r1"><span class="nom">'+esc(r.cat)+'</span>'+
+    '<span class="r1"><span class="nom">'+vin(r.cat)+esc(r.cat)+'</span>'+
       '<span class="queda num'+(qn!=null&&qn<0?" neg":"")+'">'+
         (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(qn))+'</span></span>'+
     (conNotas? '<span class="con-reg">con notas &middot; registrado <b class="num">'+
@@ -1878,7 +1982,7 @@ function hojaProyeccion(k){
       'este parte del dinero que todavía esperás. Sirven para cosas distintas: este, para armar el presupuesto; aquel, para saber con cuánto te quedás.</div></div>';
   h+='<div class="hsec">Compromisos pendientes ('+c.det.length+')</div>';
   h+= c.det.length? c.det.map(function(d){
-      return '<div class="mv"><span class="d">'+esc(d.cat)+(d.ahorro?' <span class="sub">(ahorro)</span>':'')+
+      return '<div class="mv"><span class="d">'+vin(d.cat)+esc(d.cat)+(d.ahorro?' <span class="sub">(ahorro)</span>':'')+
         '<small>'+(d.porPerm>d.porPres? "manda el permanente pendiente de pagar" :
                    (d.porPres>0? "presupuesto sin gastar" : "—"))+
         (d.porPerm>0? ' &middot; permanente '+fmtC(d.porPerm):'')+
@@ -1888,7 +1992,7 @@ function hojaProyeccion(k){
   if(c.ingDet.length){
     h+='<div class="hsec">Ingreso por entrar ('+c.ingDet.length+')</div>'+
       c.ingDet.map(function(d){
-        return '<div class="mv"><span class="d">'+esc(d.cat)+
+        return '<div class="mv"><span class="d">'+vin(d.cat)+esc(d.cat)+
           '<small>esperado '+fmtC(d.esperado)+' &middot; recibido '+fmtC(d.recibido)+'</small></span>'+
           '<span class="m num">'+fmtC(d.val)+'</span></div>'; }).join("");
   }
@@ -1897,7 +2001,7 @@ function hojaProyeccion(k){
 function hojaRubro(cat){
   var k=kAct(), ms=movsCat(S,k,cat), tot=gastoCatC(S,k,cat), pres=presuDe(S,k)[cat];
   var pc = (pres!=null&&pres!=="")? cts(pres) : null;
-  var h='<h3>'+esc(cat)+'</h3><div class="hsub">'+esc(nomVentana(k))+' · '+
+  var h='<h3>'+vin(cat)+esc(cat)+'</h3><div class="hsub">'+esc(nomVentana(k))+' · '+
     fmtC(tot)+' gastado'+(pc!=null? " de "+fmtC(pc)+" presupuestado" : " · sin presupuesto")+
     (pc!=null? ' · quedan '+fmtC(pc-tot) : '')+'</div>';
   h+= ms.length? ms.map(function(m){
@@ -1934,7 +2038,7 @@ function txtQueda(r){
 function filaBene(S,k,b,topeAparte){
   var r=rubroBene(S,k,b.que,hoyISO());
   return '<div class="bn'+(r?'" data-acc="bn" data-v="'+esc(r.cat):'')+'">'+
-    '<span class="q">'+esc(b.que||"—")+'</span>'+
+    '<span class="q">'+(r?vin(r.cat):"")+esc(b.que||"—")+'</span>'+
     '<span class="p">'+txtBene(b,topeAparte)+'</span>'+
     (r? txtQueda(r) : '')+
   '</div>';
@@ -2241,7 +2345,7 @@ function hojaPresuVentana(k){
     'la misma cifra que la app madre muestra en <b>Presupuesto contra real → Gastos → presupuesto</b>. '+
     'Si algo no cuadra, la diferencia está en alguno de estos renglones.</p>';
   h+= rs.length? rs.map(function(r){
-      return '<div class="mv"><span class="d">'+esc(r.cat)+
+      return '<div class="mv"><span class="d">'+vin(r.cat)+esc(r.cat)+
         '<small>gastado '+fmtC(r.gastoC)+'</small></span>'+
         '<span class="m num">'+fmtC(r.presC)+'</span></div>'; }).join("")+
       '<div class="mv"><span class="d"><b>Total</b></span>'+
@@ -2261,7 +2365,8 @@ function mapaHTML(k){
     h+='<button class="blq" data-acc="rubro" data-v="'+esc(b.d.nombre)+'" data-k="'+esc(k)+'" '+
       'style="left:'+pc(b.x)+'%;top:'+pc(b.y/85*100)+'%;width:'+pc(b.w)+'%;height:'+pc(b.h/85*100)+'%;'+
       'background:hsl(205,17%,'+l+'%)">'+
-      '<span>'+esc(b.d.nombre)+'</span><span class="m num">'+fmtC(b.d.valor)+'</span></button>';
+      '<span>'+vin(b.d.nombre)+esc(b.d.nombre)+'</span>'+
+      '<span class="m num">'+fmtC(b.d.valor)+'</span></button>';
   });
   return h+'</div>';
 }
@@ -2330,7 +2435,8 @@ function listaNotas(arr){
     return '<div class="nt'+(n.cubierta?" cub":"")+'">'+
       '<span class="q"><b>'+esc(n.que||"—")+'</b>'+
         '<span class="m num">'+fmtC(cts(n.monto))+'</span></span>'+
-      '<span class="a"><span class="f num">'+esc(fmtF(n.fecha))+'</span> &middot; '+
+      '<span class="a">'+(n.cat?vin(n.cat):"")+
+        '<span class="f num">'+esc(fmtF(n.fecha))+'</span> &middot; '+
         esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
         (n.cubierta? ' &middot; <b class="cubm">cubierta</b>' : '')+
         (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
@@ -2420,6 +2526,18 @@ document.addEventListener("click", function(e){
   if(acc==="proy"){ hojaProyeccion(v); return; }
   if(acc==="menu"){ hojaMenu(); return; }
   if(acc==="elegir"){ hojaElegir(); return; }
+  if(acc==="vinetas"){ hojaVinetas(); return; }
+  if(acc==="vineta"){
+    cicloRealce(v);
+    /* solo este renglón: repintar la hoja entera perdería el desplazamiento */
+    var fs2=document.querySelectorAll('[data-acc="vineta"]'), fv=null, i2;
+    for(i2=0;i2<fs2.length;i2++) if(fs2[i2].getAttribute("data-v")===v){ fv=fs2[i2]; break; }
+    if(fv){ var tmp=document.createElement("div"); tmp.innerHTML=filaVineta(v);
+      fv.parentNode.replaceChild(tmp.firstChild, fv); }
+    pinta();
+    return;
+  }
+  if(acc==="vinetas-reset"){ guardaRealce(mapaDicho()); hojaVinetas(); pinta(); return; }
   if(acc==="elegir-ok"){
     var ms=document.querySelectorAll("#lista-int input:checked"), out=[];
     for(var i=0;i<ms.length;i++) out.push(ms[i].getAttribute("data-r"));
@@ -2486,6 +2604,10 @@ function hojaMenu(){
     '<div class="fila-aj"><span>Nombre en este aparato<br><span class="sub">'+
       esc(nombreYo()||"sin nombre")+'</span></span>'+
       '<button class="lnk" data-acc="nombre">cambiar</button></div>'+
+    '<div class="fila-aj"><span>Viñetas de los rubros<br><span class="sub">'+
+      cuentaVinetas()+'</span></span>'+
+      '<button class="lnk" data-acc="vinetas" '+
+        'title="El color al lado de cada rubro, en toda la app. Se guarda solo acá: la otra persona de la casa tiene las suyas.">cambiar</button></div>'+
     '<div class="pasos"><button data-acc="cerrar-hoja">Cerrar</button>'+
       '<button data-acc="bloquear">Bloquear</button></div>');
 }
@@ -2498,11 +2620,44 @@ function hojaElegir(){
       'no toca nada de la app madre y cada quien puede tener los suyos.</div>'+
     '<div id="lista-int">'+rs.map(function(r){
       return '<label class="cbox"><input type="checkbox" data-r="'+esc(r.cat)+'"'+
-        (sel.indexOf(r.cat)>=0?" checked":"")+'><span>'+esc(r.cat)+'</span>'+
+        (sel.indexOf(r.cat)>=0?" checked":"")+'><span>'+vin(r.cat)+esc(r.cat)+'</span>'+
         '<span class="sub num">'+fmtC(r.gastoC)+'</span></label>'; }).join("")+'</div>'+
     '<div class="pasos"><button data-acc="cerrar-hoja">Cancelar</button>'+
       '<button class="pri" data-acc="elegir-ok">Guardar</button></div>');
 }
+/* ---------- viñetas de los rubros ----------
+   Un renglón por rubro, en el orden de la app madre. Se toca y cicla
+   0 → 3 → 2 → 1 → 0, sin guardar ni cancelar: cada toque ya queda. Repinta solo
+   el renglón tocado, no la hoja entera, para no perder el desplazamiento en una
+   lista larga. */
+function cuentaVinetas(){
+  var rs=(S&&S.catE)||[], i, n=0;
+  for(i=0;i<rs.length;i++) if(realceRubro(rs[i])) n++;
+  if(!rs.length) return "sin rubros todavía";
+  return n? n+" de "+rs.length+" con color" : "ninguna con color";
+}
+function filaVineta(c){
+  var n=realceRubro(c);
+  return '<button class="vfila" data-acc="vineta" data-v="'+esc(c)+'" '+
+    'title="Tocá para cambiarle el color. Va del más tenue al más intenso y vuelve a ninguno.">'+
+    '<span class="vmuestra">'+(n? '<i class="vn vn'+n+'"></i>' : '<i class="vn vn0"></i>')+'</span>'+
+    '<span class="vnom">'+esc(c)+'</span>'+
+    '<span class="vniv">'+(n? "nivel "+n : "sin color")+'</span></button>';
+}
+function hojaVinetas(){
+  var rs=(S&&S.catE&&S.catE.length)? S.catE : [];
+  abreHoja('<h3>Viñetas de los rubros</h3>'+
+    '<div class="hsub">El color al lado del nombre, en toda la app. Tocá un rubro '+
+      'para subirle o quitarle el color. Se guarda en este aparato: no toca los datos '+
+      'y la otra persona de la casa tiene las suyas.</div>'+
+    (rs.length
+      ? '<div id="lista-vin">'+rs.map(filaVineta).join("")+'</div>'
+      : '<div class="vacio">La app madre todavía no tiene rubros de egreso.</div>')+
+    '<div class="pasos"><button data-acc="vinetas-reset" '+
+      'title="Vuelve a los tres niveles con los que salió la app.">Restablecer</button>'+
+      '<button class="pri" data-acc="cerrar-hoja">Listo</button></div>');
+}
+
 /* ---------- nombre corto de este aparato ---------- */
 function pedirNombre(puedeCancelar){
   abreHoja('<h3>¿Quién usa este aparato?</h3>'+
@@ -2558,8 +2713,15 @@ function notaPaso(n){
       esc(NOTA.que||"—")+' &middot; '+fmtC(cts(parseFloat(String(NOTA.monto).replace(/[^0-9.\-]/g,""))||0))+'</div>'+
       (rs.length
         ? '<div class="formas">'+rs.map(function(c){
+            var nv=realceRubro(c), cl=[];
+            if(nv) cl.push("nv"+nv);
+            if(clave(c)===clave(NOTA.cat)) cl.push("on");
             return '<button data-acc="nota-cat" data-v="'+esc(c)+'"'+
-              (clave(c)===clave(NOTA.cat)?' class="on"':'')+'>'+esc(c)+'</button>'; }).join("")+
+              (cl.length?' class="'+cl.join(" ")+'"':'')+
+              (nv?' title="'+(nv===1?"De los que más anotás."
+                             :nv===2?"De los que anotás seguido."
+                                    :"De los que anotás de vez en cuando.")+'"':'')+
+              '>'+esc(c)+'</button>'; }).join("")+
           '<button data-acc="nota-cat" data-v="">Sin rubro</button></div>'
         : '<div class="vacio">La app madre todavía no tiene rubros de egreso.</div>'+
           '<div class="formas"><button data-acc="nota-cat" data-v="">Seguir sin rubro</button></div>')+

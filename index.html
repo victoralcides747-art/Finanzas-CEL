@@ -61,11 +61,17 @@ header{background:var(--card);border-bottom:1px solid var(--linea);
 .sp{flex:1}
 .hbtn{flex:none;background:none;border:1px solid var(--linea);border-radius:9px;
   padding:8px 12px;color:var(--tx2);font-size:16px;cursor:pointer}
-.hrow2{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:0 12px 8px}
 select.pill{background:var(--card);border:1px solid var(--linea);border-radius:8px;
   padding:10px 10px;outline:none;font-size:18px;font-weight:600;max-width:64%;
   flex:1 1 auto;min-width:0}
 select.pill:focus{border-color:var(--plan)}
+/* El corte, con su semáforo. Va relleno, no solo con el borde: a un selector
+   chico un borde de color no se le ve. Verde = el que corre. */
+select.sel-k{flex:0 1 auto;max-width:60%;font-size:17px;font-weight:700;border-width:2px;
+  padding:9px 8px}
+select.sel-k.aldia{background:#e7f4e7;border-color:#3f8c46;color:#0d5c17}
+select.sel-k.previa{background:#fdf0dd;border-color:#e2670c;color:#8a3d02}
+select.sel-k.vieja{background:#fbe6e6;border-color:#c02626;color:#8c1414}
 .hbtn.men{font-size:22px;line-height:1;padding:4px 12px 9px;letter-spacing:1px}
 /* SIN wrap adentro: si el porcentaje y los botones envuelven entre ellos, se
    montan y A+ deja de ser tocable. Lo que envuelve es la fila entera (.fila-aj),
@@ -112,6 +118,7 @@ nav button.on{color:var(--plan-tx);border-top-color:var(--plan)}
 /* ── contenedores ────────────────────────────────────────────────── */
 main{padding:10px 12px 20px}
 .caja{background:var(--card);border:1px solid var(--linea);border-radius:var(--r);
+  container-type:inline-size;
   margin-bottom:10px;overflow:hidden}
 .caja-t{padding:9px 12px 8px;border-bottom:1px solid var(--linea2);
   display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px}
@@ -123,6 +130,22 @@ main{padding:10px 12px 20px}
 
 /* ── dos números grandes ─────────────────────────────────────────── */
 .duo{display:grid;grid-template-columns:1fr;gap:1px;background:var(--linea2)}
+/* dos números grandes, lado a lado */
+.duo.dos{grid-template-columns:1fr 1fr}
+/* A letra grande dos columnas dejan a cada número sin ancho y lo parten en dos
+   renglones. Antes que eso, uno debajo del otro. */
+@container (max-width: 235px){ .duo.dos{grid-template-columns:1fr} .duo.dos .der{text-align:left} }
+/* En dos columnas cada número tiene la mitad del ancho: que se achique antes de
+   partirse en dos renglones. El cqw ya mide la columna, no la caja. */
+.duo.dos .vl{font-size:clamp(19px,15cqw,34px)}
+.duo.dos .pie{font-size:13px}
+.duo.dos .der{text-align:right}
+/* En dos columnas el rótulo no cabe en un renglón. No basta con quitarle el
+   nowrap: .et lleva flex-shrink 0, así que se salía de la columna y la caja lo
+   recortaba. Tiene que poder achicarse Y envolver. */
+.duo.dos .et{white-space:normal;flex:1 1 100%;min-width:0}
+.duo .vl.sgn.bueno{color:var(--ok-tx)}
+.duo .vl.sgn.malo{color:var(--mal-tx)}
 .duo>div{background:var(--card);padding:11px 13px 13px;display:flex;
   flex-wrap:wrap;align-items:baseline;gap:0 10px;container-type:inline-size}
 .duo .et{order:1;font-size:14px;color:var(--tx3);text-transform:uppercase;letter-spacing:.04em;
@@ -264,20 +287,18 @@ main{padding:10px 12px 20px}
    texto y peso— y siempre hacia arriba desde el rubro sin realce. Un primer
    intento dejó el nivel 3 más pálido que un rubro sin realce: se leía como
    apagado en vez de como realzado, justo al revés de lo pedido. */
-.formas button.nv1{background:#f0dcc0;border-color:#c68b3a;color:#6f3708;font-weight:700}
-.formas button.nv2{background:#f7ead9;border-color:#dcb684;color:#8a5210;font-weight:600}
-.formas button.nv3{background:#fbf6ef;border-color:#e8d6bf;color:#4a3a24;font-weight:500}
-.formas button.on,.formas button.on.nv1,.formas button.on.nv2,.formas button.on.nv3{
-  background:var(--plan-bg);border-color:var(--plan-linea);
-  color:var(--plan-tx);font-weight:650}
+/* El paso 4 se tiñe con el color que ESE rubro tiene elegido: es lo mismo que la
+   viñeta, en grande. El tinte va en el borde izquierdo, ancho, y no en el fondo:
+   así ocho tonos distintos siguen leyéndose sin pelearse con el texto. */
+.formas button.tin{border-left-width:9px;font-weight:600}
+.formas button.on{background:var(--plan-bg);border-color:var(--plan-linea);
+  color:var(--plan-tx);font-weight:700;box-shadow:inset 0 0 0 1px var(--plan-linea)}
 /* LA VIÑETA. Va pegada al nombre del rubro, en cualquier pantalla donde aparezca
    un rubro. Mismo tono cálido en tres intensidades, monótono: nivel 1 el más
    oscuro. No lleva texto ni forma distinta — no es un badge, es una marca. */
 .vn{display:inline-block;width:10px;height:10px;border-radius:3px;
   margin-right:7px;flex:0 0 auto;vertical-align:baseline}
-.vn1{background:#a86a12}
-.vn2{background:#cfa063}
-.vn3{background:#e8d2ac}
+
 /* editor de viñetas: un renglón por rubro, se toca y cambia */
 .vfila{display:flex;align-items:center;gap:0 11px;width:100%;text-align:left;
   background:var(--card2);border:1px solid var(--linea);border-radius:11px;
@@ -287,6 +308,31 @@ main{padding:10px 12px 20px}
 .vfila .vn0{background:transparent;border:1px dashed var(--linea)}
 .vfila .vnom{flex:1 1 auto;min-width:0;overflow-wrap:break-word}
 .vfila .vniv{flex:0 0 auto;font-size:14.5px;color:var(--tx3);white-space:nowrap}
+.vfila.ab{border-color:var(--plan);margin-bottom:0;border-bottom-left-radius:0;border-bottom-right-radius:0}
+.pal{border:1px solid var(--plan);border-top:0;border-radius:0 0 11px 11px;
+  padding:10px 12px 12px;margin-bottom:8px;background:var(--card)}
+.pal-f{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.pal-n{flex:0 0 auto;width:76px;font-size:14px;color:var(--tx3)}
+.pal-b{flex:1 1 auto;height:34px;min-width:0;border:1px solid rgba(0,0,0,.14);
+  border-radius:8px;cursor:pointer;padding:0}
+.pal-b.on{box-shadow:0 0 0 3px var(--plan);border-color:var(--plan)}
+.pal-x{width:100%;background:var(--card2);border:1px solid var(--linea);border-radius:9px;
+  padding:11px;font-size:16px;color:var(--tx2);cursor:pointer;margin-top:3px}
+.hoja .sec{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--tx3);padding:14px 13px 4px;border-top:1px solid var(--linea3);margin-top:6px}
+.hoja .sec:first-of-type{border-top:0;margin-top:0}
+/* la casilla de pagado, arriba en la tarjeta */
+.cpg{display:inline-flex;align-items:center;gap:7px;flex:0 0 auto;
+  background:var(--card);border:1px solid var(--tj-ln,var(--linea));border-radius:9px;
+  padding:6px 10px;font-size:14.5px;color:var(--tx2);cursor:pointer;white-space:nowrap}
+.cpg i{display:inline-block;width:16px;height:16px;border-radius:4px;font-style:normal;
+  border:1px solid var(--tj-ln,var(--linea));background:var(--card2);
+  font-size:12px;line-height:14px;text-align:center;color:var(--ok-tx)}
+.cpg.si{color:var(--ok-tx);border-color:#9ec39e}
+.cpg.si i{background:#e7f4e7;border-color:#7fae7f}
+.cpg.arma{background:var(--plan-bg);border-color:var(--plan);color:var(--plan-tx);font-weight:650}
+.mv.nota-mv .d{font-style:normal}
+.mv.nota-mv .m{font-weight:600;color:var(--tx2)}
 .nota{font-size:15.5px;color:var(--avi-tx);background:var(--avi-bg);
   border:1px solid var(--avi-linea);border-radius:7px;padding:5px 8px;margin-top:7px}
 .bene{font-size:17px;color:var(--tx2);margin-top:7px}
@@ -373,7 +419,7 @@ main{padding:10px 12px 20px}
 .buscar:focus{border-color:var(--plan)}
 .bgrande{width:100%;background:var(--plan-bg);color:var(--plan-tx);
   border:1px solid var(--plan-linea);border-radius:10px;
-  padding:16px;font-size:19.5px;font-weight:650;cursor:pointer}
+  padding:22px 16px;font-size:24px;font-weight:700;cursor:pointer;letter-spacing:-.2px}
 
 /* ── hoja emergente (explicaciones, desgloses, pasos) ─────────────── */
 .fondo{position:fixed;inset:0;background:rgba(20,20,22,.42);z-index:80;
@@ -458,12 +504,11 @@ main{padding:10px 12px 20px}
   overflow-wrap:anywhere}
 .faja b{font-weight:800;letter-spacing:.04em}
 .faja u{font-weight:700}
-.faja.anterior{background:#6b6b74}
-.faja.porcerrar{background:#e2670c}
-.faja.cerrada{background:#c02626}
+.faja.previa{background:#e2670c}
+.faja.vieja{background:#c02626}
 #marco{position:fixed;inset:0;pointer-events:none;z-index:55;border:0 solid transparent}
-#marco.porcerrar{border:5px solid #e2670c}
-#marco.cerrada{border:5px solid #c02626}
+#marco.previa{border:5px solid #e2670c}
+#marco.vieja{border:5px solid #c02626}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(var(--barra) + var(--safe-b) + 12px);
   background:#25252a;color:#f2f2f0;padding:14px 16px;border-radius:9px;font-size:16.5px;
   z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.22)}
@@ -497,7 +542,7 @@ main{padding:10px 12px 20px}
    migración sobre datos reales. Ese caso especial se respeta, no se normaliza.
 
    La cuenta vive EN EL APARATO, no en los datos. `cuentaNorm` es copia literal
-   de la madre: si una app guarda "Rosa" y la otra busca "rosa", nadie encuentra
+   de la app principal: si una app guarda "Rosa" y la otra busca "rosa", nadie encuentra
    nada y el error no se ve hasta que alguien pierde datos.
 ----------------------------------------------------------------------------- */
 var CUENTA_ORIGINAL="victor";
@@ -516,14 +561,14 @@ var DOC_NUBE=(CUENTA===CUENTA_ORIGINAL)? "estado" : CUENTA;
 
 /* El caché TAMBIÉN es por cuenta. Con una sola llave, al cambiar de cuenta se
    verían en pantalla los números cacheados de la otra antes de que llegue la
-   nube. Mismo sufijo que usa la madre: nada para la de siempre, "__cuenta" para
+   nube. Mismo sufijo que usa la app principal: nada para la de siempre, "__cuenta" para
    el resto. La escala de letra no lleva sufijo: es del aparato, no de la casa. */
 function llaveCuenta(base){
   return (CUENTA===CUENTA_ORIGINAL)? base : base+"__"+CUENTA;
 }
 var LL = {
   cache:llaveCuenta("finanzasSatelite_v1"),      /* último JSON recibido */
-  ts:   llaveCuenta("finanzasSatelite_v1_ts"),   /* ts del documento (marca de la madre) */
+  ts:   llaveCuenta("finanzasSatelite_v1_ts"),   /* ts del documento (marca de la app principal) */
   rx:   llaveCuenta("finanzasSatelite_v1_rx"),   /* cuándo lo recibió ESTE aparato */
   nom:  llaveCuenta("finanzasSatelite_nombre"),  /* nombre corto de quien usa el aparato */
   int:  llaveCuenta("finanzasSatelite_interes"), /* rubros de interés */
@@ -569,6 +614,32 @@ var NOTAS=[];               /* notas de la colección aparte */
    correo de la sesión contra el nombre del documento, así que pedir el que no
    toca da permission-denied.
 ----------------------------------------------------------------------------- */
+/* LA ÚNICA ESCRITURA sobre el documento de la app principal, y pedida
+   expresamente: marcar un corte de tarjeta como pagado. Solo toca `tjPago`.
+
+   Va en TRANSACCIÓN: se relee el documento adentro de la transacción, se le
+   cambia ese único campo y se devuelve. Si alguien más escribió en el medio,
+   Firestore reintenta con el dato nuevo. Sin esto, leer-modificar-escribir con
+   el estado que tenemos en memoria podría borrar lo que la app principal acabara
+   de guardar — y el estado es UN SOLO JSON con todo adentro.
+
+   Lo que la transacción NO puede evitar: si la app principal está abierta con un
+   estado viejo y guarda después, revierte la marca. Eso está avisado en pantalla.
+   Ninguna otra escritura sobre `finanzas` existe en este archivo. */
+function marcarPagadoNube(k, nombre, val){
+  var ref=db.collection("finanzas").doc(DOC_NUBE);
+  return db.runTransaction(function(tx){
+    return tx.get(ref).then(function(doc){
+      if(!doc.exists) throw new Error("sin documento");
+      var st;
+      try{ st=JSON.parse(doc.data().datos||"{}"); }catch(e){ throw new Error("dato ilegible"); }
+      if(!st.tjPago || typeof st.tjPago!=="object") st.tjPago={};
+      if(!st.tjPago[k] || typeof st.tjPago[k]!=="object") st.tjPago[k]={};
+      if(val) st.tjPago[k][nombre]=true; else delete st.tjPago[k][nombre];
+      tx.update(ref, {datos:JSON.stringify(st), ts:Date.now()});
+    });
+  });
+}
 function escucharEstado(alDato, alError){
   /* includeMetadataChanges es lo que hace honesto el rótulo EN VIVO. Sin esto,
      Firestore NO vuelve a llamar cuando lo único que cambia es que perdió el
@@ -1011,7 +1082,7 @@ function fmtFL(iso){ var p=String(iso||"").split("-"); return p.length<3? String
 /* ---------- movimientos: el único dinero que existe ---------- */
 function movsDe(S,k){ return (S.movimientos||[]).filter(function(m){ return m.k===k; }); }
 function esIngreso(m){ return m.tipo==="Ingreso"; }
-function catDe(m){ return m.cat||"Sin categoría"; }   /* mismo criterio que la app madre */
+function catDe(m){ return m.cat||"Sin categoría"; }   /* mismo criterio que la app principal */
 function ingresosC(S,k){ var c=0;
   movsDe(S,k).forEach(function(m){ if(esIngreso(m)) c+=cts(m.monto); }); return c; }
 function gastosC(S,k){ var c=0;
@@ -1021,7 +1092,7 @@ function presuDe(S,k){ return (S.presu||{})[k]||{}; }
 function totPresuC(S,k){ var p=presuDe(S,k), c=0;
   Object.keys(p).forEach(function(x){ if(p[x]!=null&&p[x]!=="") c+=cts(p[x]); }); return c; }
 /* INGRESO PRESUPUESTADO: los permanentes de ingreso activos de la ventana.
-   Es lo que la app madre llama "ingresos · presupuesto". */
+   Es lo que la app principal llama "ingresos · presupuesto". */
 function planIngresosC(S,k){
   var c=0;
   permsK(S,k).forEach(function(p){
@@ -1119,7 +1190,28 @@ function apartadoAhorroC(S,k){
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===ca) c+=cts(m.monto); });
   return c;
 }
+/* AHORRO AL CERRAR · hay DOS cifras y confundirlas miente por arriba, y por mucho.
+
+   `sobroC` —apartado + saldo real— es la de un corte YA CERRADO: ahí no queda
+   nada por gastar, así que todo lo que sobró del saldo es ahorro. Esa es la que
+   va en Cierres y es la misma de la app principal.
+
+   En el corte que CORRE esa cuenta no sirve: el saldo real todavía tiene adentro
+   la plata de todo lo comprometido y sin ejecutar. Decía "vas a ahorrar 40,986"
+   cuando quedaban 40,607 por gastar y lo que de verdad sobra son 379.
+
+   La proyección honesta parte del saldo LIBRE, que ya descontó los compromisos, y
+   le suma lo que se va a apartar al ahorro: eso sale del saldo pero no se va. */
 function ahorroAlCerrarC(S,k){ return sobroC(S,k); }
+function ahorroProyC(S,k,hoyIso){
+  var ap=apartadoAhorroC(S,k), c=compromisoC(S,k,hoyIso);
+  return {apartado:ap, falta:c.ahorroPend, libre:c.libre,
+          total:ap+c.ahorroPend+c.libre,
+          /* Sin rubro de ahorro con algo apartado o pendiente, el ahorro
+             proyectado ES el saldo libre, que está dos renglones más arriba.
+             Repetirlo sería la tarjeta de resumen que duplica un número. */
+          hay:(ap!==0 || c.ahorroPend!==0)};
+}
 function gastoCatC(S,k,cat){ var c=0;
   movsDe(S,k).forEach(function(m){ if(!esIngreso(m) && catDe(m)===cat) c+=cts(m.monto); }); return c; }
 function movsCat(S,k,cat){
@@ -1271,7 +1363,7 @@ function limiteLpsC(S,tj){
 /* =============================================================================
    FINANCIAMIENTOS DE UNA TARJETA  ·  minicuotas contra extrafinanciamiento
    -----------------------------------------------------------------------------
-   En la app madre un financiamiento es un PERMANENTE con cat "Financiamiento".
+   En la app principal un financiamiento es un PERMANENTE con cat "Financiamiento".
    El banco escribe en la descripción de qué tipo es y por dónde va:
        "PROMOCION MINICUOTAS 12M CUOTA:09/12"   →  minicuota, 9 de 12
        "EXT18CUOTA: 10/"                        →  extrafinanciamiento, 10 de 18
@@ -1542,46 +1634,72 @@ var BENE_RUBRO={
   "gasolinera":   "Combustible",
   "educacion":    "Escuela"
 };
-/* REALCE DE LOS RUBROS · tres niveles. Es una VIÑETA al lado del nombre, no un
-   tinte sobre las cifras: el color de los números ya está hablando (azul lo
-   presupuestado, naranja lo gastado, verde lo disponible, rojo lo excedido) y un
-   color libre por rubro se le montaría encima. La viñeta va pegada al NOMBRE,
-   así que no compite con nada.
+/* COLOR DE LOS RUBROS · una viñeta al lado del nombre, con color e intensidad
+   elegidos a mano, en cualquier pantalla donde aparezca un rubro.
+
+   Va pegada al NOMBRE y nunca a una cifra. Ese es el límite y no se mueve: el
+   color de los números ya está hablando —azul lo presupuestado, naranja lo
+   gastado, verde lo disponible, rojo lo excedido— y un color libre encima de una
+   cifra la volvería ilegible. La viñeta no compite con nada.
 
    Es de QUIEN USA EL APARATO, no de la cuenta: se guarda en localStorage y no
-   sube a la nube. Dos personas de la misma casa comparten datos y notas, y cada
-   una ve sus propias viñetas. Nunca toca un número ni reordena una lista.
+   sube a la nube. Dos personas de la misma casa comparten datos y anotaciones, y
+   cada una ve sus propios colores. Nunca toca un número ni reordena una lista.
 
-   Estos son los que él dictó, y son solo el punto de partida: se pueden cambiar
-   uno por uno desde ⋯ → Viñetas de los rubros. */
-var RUB_REALCE_DICHO={
-  1:["Despensa","Combustible","Comida rápida"],
-  2:["Farmacia","Gusto culposo","Niños no urgencia"],
-  3:["Entretenimiento","Intrínsecos","Mantenimiento casa","Salud estética",
-     "Viajes paseos","Escuela","Regalos","Vestimenta"]
+   Un valor es "<tono>-<intensidad>", por ejemplo "azul-3". Guardar el nombre y
+   no el código hexadecimal deja cambiar la paleta después sin migrar nada. */
+var TONOS=[
+  {id:"azul",    nom:"Azul",     c:["#c9dcf3","#6d9fd8","#1b4f8f"]},
+  {id:"verde",   nom:"Verde",    c:["#c8e4c9","#67a86c","#1d5a26"]},
+  {id:"naranja", nom:"Naranja",  c:["#f6dcc0","#e0a05a","#8a4a0c"]},
+  {id:"rojo",    nom:"Rojo",     c:["#f3cfcf","#d47a7a","#8c1f1f"]},
+  {id:"morado",  nom:"Morado",   c:["#dcd0ee","#9b7fc4","#4c2d7a"]},
+  {id:"turquesa",nom:"Turquesa", c:["#c6e3e4","#5da8ab","#14595c"]},
+  {id:"rosado",  nom:"Rosado",   c:["#f5d3e3","#d382ac","#8a2359"]},
+  {id:"gris",    nom:"Gris",     c:["#dcdcd8","#9a9a92","#4a4a45"]}
+];
+var INTENS=["tenue","medio","intenso"];
+function tonoDe(id){
+  for(var i=0;i<TONOS.length;i++) if(TONOS[i].id===id) return TONOS[i];
+  return null;
+}
+/* "azul-3" → {tono, nivel, color}. Nada raro adentro: si no se entiende, null. */
+function leeColor(v){
+  if(!v) return null;
+  var p=String(v).split("-"), t=tonoDe(p[0]), n=parseInt(p[1],10);
+  if(!t || !(n>=1 && n<=3)) return null;
+  return {tono:t.id, nom:t.nom, nivel:n, color:t.c[n-1]};
+}
+/* Punto de partida, con los rubros que él dictó y en azul, que es el que más
+   contrasta entre sus tres intensidades. Se indexa por raizPal, igual que los
+   beneficios: "Regalo" y "Regalos" caen en el mismo lugar. Si un rubro se
+   renombra en la app principal y ya no calza, pierde el color y nada más. */
+var RUB_COLOR_DICHO={
+  "azul-3":["Despensa","Combustible","Comida rápida"],
+  "azul-2":["Farmacia","Gusto culposo","Niños no urgencia"],
+  "azul-1":["Entretenimiento","Intrínsecos","Mantenimiento casa","Salud estética",
+            "Viajes paseos","Escuela","Regalos","Vestimenta"]
 };
-/* Se indexa por raizPal, igual que los beneficios: así "Niños" y "Niño" o
-   "Regalo" y "Regalos" caen en el mismo lugar sin escribirlos dos veces. Si un
-   rubro se renombra en la madre y ya no calza, lo único que pasa es que pierde
-   la viñeta: no se rompe nada. */
 function mapaDicho(){
-  var m={};
-  [1,2,3].forEach(function(n){
-    RUB_REALCE_DICHO[n].forEach(function(c){ m[raizPal(c)]=n; });
-  });
+  var m={}, v;
+  for(v in RUB_COLOR_DICHO) if(Object.prototype.hasOwnProperty.call(RUB_COLOR_DICHO,v)){
+    RUB_COLOR_DICHO[v].forEach(function(c){ m[raizPal(c)]=v; });
+  }
   return m;
 }
 var RUB_REALCE=mapaDicho();
-/* Lo que está eligiendo esta persona. Arranca en lo dictado y el aparato lo
-   reemplaza al abrir si hay algo guardado. Se pasa aparte para poder probarlo. */
+/* Lo que está eligiendo esta persona. El aparato lo reemplaza al abrir. */
 var REALCE=RUB_REALCE;
-function realceRubro(c,m){
+function colorRubro(c,m){
   var k=raizPal(c);
-  if(!k) return 0;
-  return (m||REALCE)[k] || 0;
+  if(!k) return null;
+  return leeColor((m||REALCE)[k]);
 }
-/* 0 → 3 → 2 → 1 → 0. Da la vuelta, así un toque de más no deja a nadie atrapado. */
-function siguienteRealce(n){ return n===0? 3 : n===3? 2 : n===2? 1 : 0; }
+/* El nivel suelto, que es lo que usan las pruebas y el tinte del paso 4. */
+function realceRubro(c,m){
+  var x=colorRubro(c,m);
+  return x? x.nivel : 0;
+}
 /* EL RUBRO DEL BENEFICIO: el beneficio dice "Farmacias" y el rubro "Farmacia" →
    cruzan solos. "Supermercados" y "Despensa" solo cruzan por la tabla de arriba.
    Si no cruza por ninguna vía, no se muestra cifra. */
@@ -1698,12 +1816,37 @@ function notasSinRubro(notas,k){
    Las fechas son de reloj, no de los datos: acá no se decide ningún monto
    (regla 3), solo cuánto hay que gritarlo.
 ============================================================================= */
+/* Cuándo empezó a moverse una ventana. No hay fecha guardada de una ventana —no
+   es un rango de fechas, es un mosaico de cortes—, así que lo más honesto que
+   hay es el primer movimiento que cayó en ella. Sin movimientos, null: no se
+   inventa una edad. */
+function iniVentana(S,k){
+  var ms=(S&&S.movimientos)||[], i, min=null;
+  for(i=0;i<ms.length;i++){
+    var m=ms[i];
+    if(!m || m.k!==k || !m.fecha) continue;
+    if(min===null || String(m.fecha)<min) min=String(m.fecha);
+  }
+  return min;
+}
+/* EL ESTADO DEL CORTE QUE ESTÁS VIENDO. Mirar un corte viejo creyendo que son
+   los números de hoy es el error caro.
+
+     estás en el más nuevo                        → "aldia"     verde
+     hay uno más nuevo, y nació hace ≤ 7 días     → "previa"    amarillo
+     hay uno más nuevo, y ya lleva más de 7 días  → "vieja"     rojo
+     hay uno más nuevo pero sin movimientos       → "previa"    amarillo
+
+   El último caso importa: sin movimientos no se sabe cuándo nació, y se avisa
+   flojo en vez de gritar. Las fechas deciden cuánto avisar, nunca un monto. */
 function estadoCorte(S,k,hoy){
   var ult=ultimaVentana(S);
-  if(!ult || !k || k===ult) return {previa:false, nivel:"", ultima:ult};
-  var d=dsol(hoy).getDate();
-  var nivel = (d>15)? "cerrada" : (d>=10)? "porcerrar" : "anterior";
-  return {previa:true, nivel:nivel, ultima:ult};
+  if(!ult || !k) return {previa:false, nivel:"", ultima:ult, dias:null};
+  if(k===ult) return {previa:false, nivel:"aldia", ultima:ult, dias:null};
+  var ini=iniVentana(S,ult);
+  var dias = ini? diasEntre(new Date(ini+"T00:00:00"), hoy) : null;
+  var nivel = (dias!==null && dias>7)? "vieja" : "previa";
+  return {previa:true, nivel:nivel, ultima:ult, dias:dias};
 }
 /*==LOGICA-FIN==*/
 
@@ -1732,18 +1875,18 @@ function cargaRealce(){
   REALCE = (m && typeof m==="object" && !Array.isArray(m))? m : mapaDicho();
 }
 function guardaRealce(m){ REALCE=m; lsSet(LL.rlc, JSON.stringify(m)); }
-function cicloRealce(cat){
+/* Poner o quitar el color de un rubro. `v` es "azul-3" o "" para quitarlo. */
+function ponColor(cat,v){
   var m={}, k;
   for(k in REALCE) if(Object.prototype.hasOwnProperty.call(REALCE,k)) m[k]=REALCE[k];
   var kk=raizPal(cat); if(!kk) return;
-  var n=siguienteRealce(realceRubro(cat));
-  if(n) m[kk]=n; else delete m[kk];
+  if(v && leeColor(v)) m[kk]=v; else delete m[kk];
   guardaRealce(m);
 }
-/* La viñeta. Un cuadrito antes del nombre; sin nivel, nada — ni un hueco. */
+/* La viñeta. Un cuadrito antes del nombre; sin color elegido, nada — ni un hueco. */
 function vin(cat){
-  var n=realceRubro(cat);
-  return n? '<i class="vn vn'+n+'" aria-hidden="true"></i>' : '';
+  var x=colorRubro(cat);
+  return x? '<i class="vn" style="background:'+x.color+'" aria-hidden="true"></i>' : '';
 }
 function kAct(){
   if(!S) return "";
@@ -1757,18 +1900,18 @@ function nSig(c){ return c<0? " neg":""; }
 
 /* Explicaciones: se ven al tocar (o dejar el dedo) sobre el dato. */
 var EX={
-  singastar:["Saldo real · sin gastar","<code>ingresos − gastos</code> de este corte, solo con movimientos registrados.<br><br>Es el mismo número que la app madre muestra como <b>SALDO REAL</b>."],
-  proy:["Proyección","<code>saldo real + ingreso por entrar − compromisos pendientes</code>.<br><br>Es el mismo <b>saldo libre proyectado</b> de la app madre: lo que queda después de ejecutar el presupuesto. No es dinero real y por eso va en su propio recuadro."],
-  rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app madre; el gastado sale solo de los movimientos de este corte."],
+  singastar:["Saldo real · sin gastar","<code>ingresos − gastos</code> de este corte, solo con movimientos registrados.<br><br>Es el mismo número que la app principal muestra como <b>SALDO REAL</b>."],
+  proy:["Proyección","<code>saldo real + ingreso por entrar − compromisos pendientes</code>.<br><br>Es el mismo <b>saldo libre proyectado</b> de la app principal: lo que queda después de ejecutar el presupuesto. No es dinero real y por eso va en su propio recuadro."],
+  rubro:["Rubro","<code>presupuesto − gastado</code>. El presupuesto es un límite que vos te ponés en la app principal; el gastado sale solo de los movimientos de este corte."],
   gastotj:["Gasto real de la tarjeta","Todo lo que esta tarjeta carga en este corte:<br><br>· los movimientos registrados con esta forma de pago, y<br>· los pagos permanentes de este corte que se cobran con ella y todavía no tienen movimiento.<br><br>El permanente ya marcado entra una sola vez, por su movimiento: sumar además la plantilla sería contar el mismo dinero dos veces. Tocá el número para ver el detalle."],
   anterior:["Corte anterior","Lo que gastaste con esta tarjeta en el corte anterior, y si lo marcaste como pagado.<br><br>Son dos fechas distintas: arriba va la del corte que está abierto —que todavía no cerró, así que su pago siempre está por venir— y acá la del corte anterior, que ya cerró y puede estar vencida.<br><br>Las dos salen del día de pago de la libreta: son recordatorios, no cambian ningún número.<br><br>La marca es a mano: si no la pusiste, figura pendiente aunque la fecha de pago ya haya pasado."],
-  cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de este corte − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app madre y se dice cuál se usó; sin tasa no se estima nada."],
+  cupo:["Cupo de la tarjeta","<code>límite − minicuotas por pagar = <b>límite actual</b></code><br><code>límite actual − consumo de este corte − corte anterior sin pagar = <b>disponible</b></code>.<br><br>Las minicuotas toman cupo hasta que se terminan de pagar: saldo = cuota × cuotas que faltan, y una cuota solo se descuenta cuando su movimiento existe. El extrafinanciamiento no resta acá.<br><br>El corte anterior resta mientras no esté marcado como pagado, aunque la fecha ya haya pasado.<br><br>Si el límite está en otra moneda se convierte con la tasa de la app principal y se dice cuál se usó; sin tasa no se estima nada."],
   tope:["Tope de beneficios","Es <b>uno solo por tarjeta</b>, no uno por rubro: si da 7% en supermercados y 7% en farmacias, los dos acumulan contra el mismo tope."],
-  corte:["Corte y pago","Días del mes anotados en la libreta de la app madre. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto.<br><br>«Vence el» es la fecha máxima de pago <b>del corte que está abierto</b>: el primer día de pago que cae después de que ese corte cierre. Todavía no llega. La del corte anterior va abajo, junto a lo que se debe."],
-  cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app madre corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
-  registro:["Registro manual","Lo que comprás y todavía no aparece en el estado de cuenta. Sirve para que el <b>disponible</b> de la tarjeta y <b>lo que queda</b> de un rubro no te mientan por abajo mientras estás en la tienda.<br><br><b>No son movimientos.</b> No suman, no restan y no tocan el saldo real ni los cierres: ahí solo cuentan los movimientos de la app madre. Solo ensombrecen un margen, nunca un saldo.<br><br>Cuando la compra aparece en el estado de cuenta, marcala como <b>cubierta</b> y deja de contar (se puede deshacer). Si se te olvida, el número queda pesimista: te muestra menos plata de la que tenés, nunca más.<br><br>Cuentan solo las de este corte. Sin rubro, la anotación cuenta para la tarjeta pero no para ningún rubro."],
+  corte:["Corte y pago","Días del mes anotados en la libreta de la app principal. Sirven para saber en qué corte cae una compra de hoy — nunca para dar por pagado un monto.<br><br>«Vence el» es la fecha máxima de pago <b>del corte que está abierto</b>: el primer día de pago que cae después de que ese corte cierre. Todavía no llega. La del corte anterior va abajo, junto a lo que se debe."],
+  cierre:["Lo que sobró","<code>lo apartado al rubro de ahorro + (lo que entró − lo que se gastó)</code>.<br><br>El ahorro cuenta porque salió como gasto pero no se fue: se guardó. Debajo, aparte, va el presupuesto contra el gasto.<br><br>Se calcula al vuelo cada vez que abrís la app: si la app principal corrige un movimiento, esto cambia solo. No hay ningún cierre guardado."],
+  registro:["Registro manual","Anotá acá tus compras en el momento en que las hacés, para que el <b>disponible</b> de la tarjeta y <b>lo que queda</b> de un rubro no te mientan por abajo mientras estás en la tienda.<br><br><b>No son movimientos.</b> No suman, no restan y no tocan el saldo real ni los cierres: ahí solo cuentan los movimientos de la app principal. Una anotación ensombrece un margen, nunca un saldo.<br><br>Cuando cargues esa compra en la app principal —a mano o pegando el estado de cuenta— marcá la anotación como <b>registrada</b>: deja de descontar, porque a partir de ahí descuenta el movimiento. Se puede deshacer. Si se te olvida, el número queda pesimista: te muestra menos plata de la que tenés, nunca más.<br><br>Cuentan solo las de este corte. Sin rubro, la anotación cuenta para la tarjeta pero no para ningún rubro."],
   cuenta:["La cuenta abierta","De quién son los números que estás viendo.<br><br>Cada cuenta tiene su propio documento en la nube y su propio PIN: no se cruzan, y el servidor no deja leer el de otra. El caché de este aparato también va separado por cuenta.<br><br>Se cambia desde ⋯ → Cuenta abierta, o desde la pantalla del PIN. Es una vez por aparato; después, solo el PIN."],
-  estado:["De dónde viene lo que ves","Cuenta abierta: <b>"+esc(CUENTA)+"</b>.<br><br>EN VIVO: conectado al documento de la app madre; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
+  estado:["De dónde viene lo que ves","Cuenta abierta: <b>"+esc(CUENTA)+"</b>.<br><br>EN VIVO: conectado al documento de la app principal; cuando ella guarda, esta pantalla se actualiza sola.<br>CACHÉ: es la última copia recibida en este aparato, puede estar vieja."]
 };
 
 /* ---------- armazón ---------- */
@@ -1782,8 +1925,8 @@ function pinta(){
   if(!S) cuerpo='<div class="caja"><div class="vacio">'+
     (FUENTE==="mal"? "No se pudo leer la nube"+(ERR?" ("+esc(ERR)+")":"")+"."
      : FUENTE==="vacio"? (CUENTA===CUENTA_ORIGINAL
-         ? "El documento de la app madre está vacío."
-         : "La cuenta «"+esc(CUENTA)+"» todavía no tiene datos. Se llenan solos en cuanto la app madre guarde con esta cuenta abierta.")
+         ? "El documento de la app principal está vacío."
+         : "La cuenta «"+esc(CUENTA)+"» todavía no tiene datos. Se llenan solos en cuanto la app principal guarde con esta cuenta abierta.")
      : "Esperando el primer dato…")+'</div></div>';
   else if(VISTA.tab==="rubros")   cuerpo=vRubros();
   else if(VISTA.tab==="tarjetas") cuerpo=vTarjetas();
@@ -1830,9 +1973,7 @@ function fajaCorte(){
   if(!S) return "";
   var e=estadoCorte(S,kAct(),hoy());
   if(!e.previa) return "";
-  var t = e.nivel==="cerrada"   ? "CORTE CERRADO"
-        : e.nivel==="porcerrar" ? "CORTE POR CERRAR"
-        : "CORTE ANTERIOR";
+  var t = e.nivel==="vieja"? "CORTE VIEJO" : "CORTE ANTERIOR";
   /* corto a propósito: el corte que estás viendo ya está en el selector de
      arriba, repetirlo acá solo agrega renglones */
   return '<div class="faja '+e.nivel+'" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
@@ -1845,7 +1986,7 @@ function fajaCorte(){
 function marcoCorte(){
   var m=document.getElementById("marco");
   var e=S? estadoCorte(S,kAct(),hoy()) : {previa:false,nivel:""};
-  if(!e.previa || e.nivel==="anterior"){ if(m) m.className=""; return; }
+  if(!e.previa){ if(m) m.className=""; return; }
   if(!m){ m=document.createElement("div"); m.id="marco"; document.body.appendChild(m); }
   m.className=e.nivel;
 }
@@ -1860,23 +2001,30 @@ function cabecera(){
         : con?"EN VIVO" : "SIN CONEXIÓN";
   var det = TS_DATO? ("dato "+haceCuanto(TS_DATO)+" · "+hhmm(TS_DATO))
           : (RX? hhmm(RX) : "—");
+  /* El corte va ARRIBA, al lado del nombre: es lo primero que hay que saber
+     antes de creerle a un número. Y lleva su propio color, que es el mismo
+     semáforo de la faja: verde si estás en el que corre, amarillo si hay uno más
+     nuevo, rojo si ese más nuevo ya lleva más de una semana. */
+  var ec = S? estadoCorte(S,k,hoy()) : {nivel:""};
   return '<header><div class="hrow">'+
-      '<span class="marca">Finanzas</span><span class="sp"></span>'+
-      '<button class="est '+cls+'" data-acc="ex" data-ex="estado">'+
-        '<span class="est-m">'+m+'</span><span class="est-v">'+esc(det)+'</span></button>'+
-      '<button class="hbtn men" data-acc="menu" title="Tamaño de letra, nombre y bloquear">⋯</button>'+
-    '</div>'+
-    (S? '<div class="hrow2"><select class="pill" id="selK" data-acc="ventana">'+
-      v.map(function(x){ return '<option value="'+esc(x)+'"'+(x===k?" selected":"")+'>'+
-        esc(nomVentana(x))+'</option>'; }).join("")+'</select>'+
+      '<span class="marca">Finanzas</span>'+
+      (S? '<select class="pill sel-k '+(ec.nivel||"")+'" id="selK" data-acc="ventana" '+
+        'title="'+(ec.nivel==="aldia"? "Es el corte que corre."
+                 : ec.nivel==="vieja"? "Estás viendo un corte viejo: ya hay uno más nuevo desde hace más de una semana."
+                 : "Estás viendo un corte anterior: ya hay uno más nuevo.")+'">'+
+        v.map(function(x){ return '<option value="'+esc(x)+'"'+(x===k?" selected":"")+'>'+
+          esc(nomVentana(x))+'</option>'; }).join("")+'</select>' : '')+
+      '<span class="sp"></span>'+
       /* De quién son estos números. Solo cuando NO es la cuenta de siempre: en un
          aparato de una sola persona sería ruido permanente, y la cabecera es
          cara —a letra grande, una línea de más tapa contenido—. Sin chip = la
          cuenta de siempre. El nombre está siempre en ⋯ y en la pantalla del PIN. */
-      (CUENTA!==CUENTA_ORIGINAL
-        ? '<span class="sp"></span><span class="cuenta-chip" data-acc="ex" data-ex="cuenta">'+
-          esc(CUENTA)+'</span>' : '')+
-      '</div>' : '')+
+      (S && CUENTA!==CUENTA_ORIGINAL
+        ? '<span class="cuenta-chip" data-acc="ex" data-ex="cuenta">'+esc(CUENTA)+'</span>' : '')+
+      '<button class="est '+cls+'" data-acc="ex" data-ex="estado">'+
+        '<span class="est-m">'+m+'</span><span class="est-v">'+esc(det)+'</span></button>'+
+      '<button class="hbtn men" data-acc="menu" title="Tamaño de letra, nombre y bloquear">⋯</button>'+
+    '</div>'+
     fajaCorte()+
     '</header>';
 }
@@ -1909,8 +2057,9 @@ function filaRubro(r,mini){
     '<span class="r1"><span class="nom">'+vin(r.cat)+esc(r.cat)+'</span>'+
       '<span class="queda num'+(qn!=null&&qn<0?" neg":"")+'">'+
         (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(qn))+'</span></span>'+
-    (conNotas? '<span class="con-reg">con notas &middot; registrado <b class="num">'+
-        fmtC(q)+'</b> &middot; '+nt.n+' nota'+(nt.n===1?"":"s")+' de '+fmtC(nt.c)+'</span>' : '')+
+    (conNotas? '<span class="con-reg">quedaban <b class="num">'+fmtC(q)+'</b> '+
+        'y '+nt.n+' anotaci'+(nt.n===1?"ón":"ones")+' sin registrar descuentan '+
+        fmtC(nt.c)+'</span>' : '')+
     '<span class="r2"><span class="gas">gastado '+fmtC(gas)+'</span>'+
       (pres!=null? '<span class="pre">de '+fmtC(pres)+'</span>' : '')+
       (r.n? '<span>'+r.n+' mov.</span>':'')+'</span>'+
@@ -1931,17 +2080,21 @@ function vRubros(){
   var rest=rs.filter(function(r){ return sel.indexOf(r.cat)<0; }).sort(ord);
   var ing=ingresosC(S,k), gas=gastosC(S,k), nMov=movsDe(S,k).length;
   var cmp=compromisoC(S,k,hoyISO());
-  var h='<div class="caja"><div class="duo">'+
+  /* Los dos números grandes, lado a lado: el real a la izquierda y la proyección
+     a la derecha. La proyección lleva color —verde si sobra, rojo si falta—
+     porque es la única cifra de la app que responde "¿me alcanza?". El saldo
+     real no lo lleva: ahí el color no agrega nada, es lo que hay. */
+  var h='<div class="caja"><div class="duo dos">'+
     '<div data-acc="ex" data-ex="singastar"><span class="et">Saldo real &middot; sin gastar</span>'+
       '<span class="vl num'+nSig(sg)+'">'+fmtC(sg)+'</span>'+
       '<span class="pie">'+fmtC(ing)+' − '+fmtC(gas)+' &middot; '+nMov+' movimientos</span></div>'+
-    '</div></div>'+
-    '<div class="caja proy"><div class="caja-t"><h2>Proyección &middot; fuera del saldo real</h2></div>'+
-    '<div class="duo"><div data-acc="proy" data-v="'+esc(k)+'">'+
-      '<span class="et">Saldo libre proyectado</span>'+
-      '<span class="vl num'+nSig(cmp.libre)+'">'+fmtC(cmp.libre,true)+'</span>'+
-      '<span class="pie">saldo real'+(cmp.ingPend>0? ' + '+fmtC(cmp.ingPend)+' por entrar':'')+
-        ' − '+fmtC(cmp.pendiente)+' de compromisos pendientes &middot; ver detalle</span></div>'+
+    /* Un solo lugar: si estuviera también abajo sería el mismo número dos veces. */
+    '<div class="der proy" data-acc="proy" data-v="'+esc(k)+'">'+
+      '<span class="et">Proyección</span>'+
+      '<span class="vl num sgn '+(cmp.libre<0?"malo":"bueno")+'">'+fmtC(cmp.libre,true)+'</span>'+
+      '<span class="pie">−'+fmtC(cmp.pendiente)+' comprometido'+
+        (cmp.ingPend>0? ' &middot; +'+fmtC(cmp.ingPend)+' por entrar':'')+
+        ' &middot; ver detalle</span></div>'+
     '</div></div>';
   h+='<div class="caja"><div class="caja-t"><h2>Rubros de interés</h2><span class="sp"></span>'+
      '<button class="lnk" data-acc="elegir">elegir</button></div>'+
@@ -1956,9 +2109,9 @@ function vRubros(){
   return h;
 }
 function hojaProyeccion(k){
-  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k), ah=ahorroAlCerrarC(S,k);
+  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k), ah=ahorroProyC(S,k,hoyISO());
   var h='<h3>Proyección &middot; '+esc(nomVentana(k))+'</h3>'+
-    '<div class="hsub">fuera del saldo real &middot; las mismas cifras de la app madre</div>'+
+    '<div class="hsub">fuera del saldo real &middot; las mismas cifras de la app principal</div>'+
     '<div class="cot"><div class="cot-t">Saldo libre proyectado</div>'+
       '<div class="cot-n"><span>saldo real</span><b class="num">'+fmtC(saldoC(S,k))+'</b></div>'+
       (c.ingPend>0? '<div class="cot-n"><span>+ ingreso por entrar</span><b class="num">'+fmtC(c.ingPend)+'</b></div>':'')+
@@ -1967,17 +2120,24 @@ function hojaProyeccion(k){
         '<b class="num sub">'+fmtC(c.ahorroPend)+'</b></div>':'')+
       '<div class="cot-n"><span><b>saldo libre proyectado</b></span><b class="num'+nSig(c.libre)+'">'+fmtC(c.libre,true)+'</b></div>'+
       '<div class="cot-e">Por rubro, lo que falta salir es el mayor entre el presupuesto que todavía no se gastó y los permanentes que todavía no se marcaron — nunca la suma de los dos. Un gasto suelto no descuenta el permanente: cada permanente se descuenta solo cuando su movimiento existe.<br><br>El rubro de ahorro cuenta como compromiso mientras el corte está abierto: esa plata no está disponible.</div></div>'+
-    '<div class="cot"><div class="cot-t">Ahorro al cerrar</div>'+
-      '<div class="cot-n"><span>apartado al rubro '+esc(catAhorro(S))+'</span><b class="num">'+fmtC(ah.apartado)+'</b></div>'+
-      '<div class="cot-n"><span>+ saldo real</span><b class="num'+nSig(ah.saldo)+'">'+fmtC(ah.saldo)+'</b></div>'+
-      '<div class="cot-n"><span><b>ahorro real al cerrar</b></span><b class="num'+nSig(ah.total)+'">'+fmtC(ah.total,true)+'</b></div>'+
-      '<div class="cot-e">Al cerrar el corte, lo que sobra del saldo también es ahorro. Es una proyección: cambia con cada movimiento.</div></div>'+
+    (ah.hay
+      ? '<div class="cot"><div class="cot-t">Ahorro proyectado al cerrar</div>'+
+        '<div class="cot-n"><span>apartado al rubro '+esc(catAhorro(S))+'</span><b class="num">'+fmtC(ah.apartado)+'</b></div>'+
+        (ah.falta>0? '<div class="cot-n"><span>+ lo que falta apartar</span><b class="num">'+fmtC(ah.falta)+'</b></div>':'')+
+        '<div class="cot-n"><span>+ saldo libre proyectado</span><b class="num'+nSig(ah.libre)+'">'+fmtC(ah.libre,true)+'</b></div>'+
+        '<div class="cot-n"><span><b>ahorro proyectado al cerrar</b></span><b class="num'+nSig(ah.total)+'">'+fmtC(ah.total,true)+'</b></div>'+
+        '<div class="cot-e">Si se ejecuta todo lo comprometido, esto es lo que queda guardado cuando cierre el corte. '+
+        '<b>No parte del saldo real</b>: ese todavía tiene adentro la plata de los compromisos que no se han ejecutado. '+
+        'Parte del saldo libre, que ya los descontó. Es una proyección: cambia con cada movimiento.<br><br>'+
+        'La cifra de un corte ya cerrado es otra y está en Cierres: ahí no queda nada por gastar, '+
+        'así que todo lo que sobró del saldo es ahorro.</div></div>'
+      : '')+
     '<div class="cot"><div class="cot-t">Del ingreso esperado, sin repartir</div>'+
       '<div class="cot-n"><span>ingreso presupuestado</span><b class="num">'+fmtC(t.ing.plan)+'</b></div>'+
       '<div class="cot-n"><span>− presupuesto</span><b class="num">'+fmtC(t.egr.plan)+'</b></div>'+
       '<div class="cot-n"><span><b>sin repartir</b></span><b class="num'+nSig(t.res.plan)+'">'+fmtC(t.res.plan,true)+'</b></div>'+
       '<div class="cot-e">Compara dos planes y no mira ni un movimiento: del ingreso que esperás, cuánto no le asignaste a ningún rubro. '+
-      'En la app madre es el «saldo &middot; presupuesto» de Presupuesto contra real.<br><br>'+
+      'En la app principal es el «saldo &middot; presupuesto» de Presupuesto contra real.<br><br>'+
       '<b>No es el sobrante sin asignar de arriba.</b> Aquel parte del dinero que ya tenés y le resta lo que ya está comprometido; '+
       'este parte del dinero que todavía esperás. Sirven para cosas distintas: este, para armar el presupuesto; aquel, para saber con cuánto te quedás.</div></div>';
   h+='<div class="hsec">Compromisos pendientes ('+c.det.length+')</div>';
@@ -2001,15 +2161,33 @@ function hojaProyeccion(k){
 function hojaRubro(cat){
   var k=kAct(), ms=movsCat(S,k,cat), tot=gastoCatC(S,k,cat), pres=presuDe(S,k)[cat];
   var pc = (pres!=null&&pres!=="")? cts(pres) : null;
-  var h='<h3>'+vin(cat)+esc(cat)+'</h3><div class="hsub">'+esc(nomVentana(k))+' · '+
-    fmtC(tot)+' gastado'+(pc!=null? " de "+fmtC(pc)+" presupuestado" : " · sin presupuesto")+
-    (pc!=null? ' · quedan '+fmtC(pc-tot) : '')+'</div>';
+  var nt=notasRubroC(NOTAS,k,cat);
+  var h='<h3>'+vin(cat)+esc(cat)+'</h3><div class="hsub">'+esc(nomVentana(k))+' &middot; '+
+    fmtC(tot)+' gastado'+(pc!=null? " de "+fmtC(pc)+" presupuestado" : " &middot; sin presupuesto")+
+    (pc!=null? ' &middot; quedan '+fmtC(pc-tot)+(nt.n? ", y con las anotaciones "+fmtC(pc-tot-nt.c) : '') : '')+
+    '</div>';
+  h+= '<div class="sec">Movimientos registrados</div>';
   h+= ms.length? ms.map(function(m){
       return '<div class="mv"><span class="f num">'+esc(fmtF(m.fecha))+'</span>'+
         '<span class="d">'+esc(m.desc||"—")+
           ((m.pago||m.fx)? '<small>'+esc([m.pago,m.fx].filter(Boolean).join(" · "))+'</small>':'')+
         '</span><span class="m num">'+fmtC(cts(m.monto))+'</span></div>';
     }).join("") : '<div class="vacio">Sin movimientos de este rubro en este corte.</div>';
+  /* Las anotaciones de ESTE rubro, aparte y rotuladas: son la otra mitad de por
+     qué el «queda» del rubro dice lo que dice. Van abajo y separadas para que no
+     se confundan con los movimientos, que son los que sí son dinero. */
+  var nsr=notasVivas(NOTAS,k).filter(function(n){ return mismoPago(n.cat,cat); });
+  h+= '<div class="sec">Anotaciones sin registrar'+(nt.n? ' &middot; '+fmtC(nt.c) : '')+'</div>';
+  h+= nsr.length? nsr.map(function(n){
+      return '<div class="mv nota-mv"><span class="f num">'+esc(fmtF(n.fecha))+'</span>'+
+        '<span class="d">'+esc(n.que||"—")+
+          '<small>'+esc([n.pago,n.autor].filter(Boolean).join(" · ")||"—")+'</small>'+
+        '</span><span class="m num">'+fmtC(cts(n.monto))+'</span></div>';
+    }).join("")+
+    '<div class="sub" style="padding:8px 13px 2px">No son movimientos: no entran en el '+
+      'gastado ni en el saldo real. Solo descuentan de lo que queda de este rubro, '+
+      'hasta que las marques como registradas.</div>'
+    : '<div class="vacio">Ninguna anotación pendiente de este rubro.</div>';
   abreHoja(h);
 }
 
@@ -2044,11 +2222,25 @@ function filaBene(S,k,b,topeAparte){
   '</div>';
 }
 /* El estado del corte anterior en un símbolo, no en una frase. La marca es a
-   mano en la app madre: sin marca, pendiente, aunque la fecha ya haya pasado. */
+   mano: sin marca, pendiente, aunque la fecha ya haya pasado. */
 function marcaPago(pagado){
   return pagado
-    ? '<span class="mk ok" title="Marcado como pagado en la app madre.">&#10003; pagado</span>'
-    : '<span class="mk no" title="Sin marcar como pagado en la app madre. La marca es a mano: la fecha no la pone sola.">&#10005; sin pagar</span>';
+    ? '<span class="mk ok" title="Marcado como pagado.">&#10003; pagado</span>'
+    : '<span class="mk no" title="Sin marcar como pagado. La marca es a mano: la fecha no la pone sola.">&#10005; sin pagar</span>';
+}
+/* La casilla para marcar el corte de una tarjeta como pagado, arriba, al lado del
+   nombre. Es la única cosa de esta app que escribe en el documento de la app
+   principal, y por eso pide confirmar: un toque abre, el segundo escribe. */
+function casillaPago(k,nombre,pagado){
+  var arm=(VISTA.pagoArma===nombre);
+  return '<button class="cpg'+(pagado?" si":"")+(arm?" arma":"")+'" '+
+    'data-acc="'+(arm?"tj-pago-ok":"tj-pago")+'" data-v="'+esc(nombre)+'" '+
+    'data-p="'+(pagado?"0":"1")+'" '+
+    'title="'+(pagado
+      ? "Este corte está marcado como pagado. Tocá para desmarcarlo. Se escribe en la app principal."
+      : "Marcá este corte como pagado cuando ya lo hayas pagado. Se escribe en la app principal y deja de restar cupo.")+'">'+
+    '<i>'+(pagado?"&#10003;":"")+'</i>'+
+    '<span>'+(arm? (pagado?"confirmar":"confirmar") : (pagado?"pagado":"marcar pagado"))+'</span></button>';
 }
 function fmtD(d){
   function dd(n){ return (n<10?"0":"")+n; }
@@ -2115,15 +2307,16 @@ function bloqueDisp(t,cu){
       '<span class="et">Disponible</span>'+
       '<span class="vl num disp'+nSig(cu.dispC)+'">'+fmtC(cu.dispC)+'</span>'+pie+'</div>';
   return '<div class="tj-d" data-acc="tj-cupo" data-v="'+esc(t.nombre)+'">'+
-    '<span class="et">Disponible con notas</span>'+
+    '<span class="et">Disponible con anotaciones</span>'+
     '<span class="vl num disp'+nSig(con)+'">'+fmtC(con)+'</span>'+
-    '<span class="con-reg">registrado <b class="num">'+fmtC(cu.dispC)+'</b>'+
-      ' &middot; '+nt.n+' nota'+(nt.n===1?"":"s")+' de '+fmtC(nt.c)+'</span>'+
+    '<span class="con-reg">había <b class="num">'+fmtC(cu.dispC)+'</b> '+
+      'y '+nt.n+' anotaci'+(nt.n===1?"ón":"ones")+' sin registrar descuentan '+
+      fmtC(nt.c)+'</span>'+
     pie+'</div>';
 }
 function vTarjetas(){
   var k=kAct(), tjs=tarjetasConCorte(S);
-  if(!tjs.length) return '<div class="caja"><div class="vacio">No hay tarjetas con corte anotado en la libreta de la app madre.</div></div>';
+  if(!tjs.length) return '<div class="caja"><div class="vacio">No hay tarjetas con corte anotado en la libreta de la app principal.</div></div>';
   var h='<div class="caja"><div class="caja-t"><h2>Tarjetas &middot; '+esc(nomVentana(k))+'</h2></div>';
   tjs.forEach(function(t){
     var pl=plazoDe(t,hoy()), g=gastoTjTotal(S,k,t.nombre,hoyISO());
@@ -2135,7 +2328,8 @@ function vTarjetas(){
       /* 1 · quién es, en cuánto corta y sus datos generales */
       '<div class="tj-n"><b>'+esc(t.nombre)+'</b>'+
         '<span class="tj-c'+(urge?" urge":"")+'" data-acc="ex" data-ex="corte">'+
-        esc(txtCorte(pl))+'</span></div>'+
+        esc(txtCorte(pl))+'</span>'+
+        casillaPago(k,t.nombre,tjPagado(S,k,t.nombre))+'</div>'+
       datosTj(t,cu,pl,va)+
       /* 2 · cuánto queda de la tarjeta */
       (cu.hay? bloqueDisp(t,cu) : '')+
@@ -2221,7 +2415,7 @@ function hojaGastoTj(nombre){
       'en este corte. Las que sí aparecen son: '+
       (us.length? us.map(function(u){ return esc(u.pago)+' ('+u.n+')'; }).join(", ")
                 : 'ninguna')+'. Si alguna es esta tarjeta escrita distinto, el nombre de la '+
-      'libreta y el de la forma de pago tienen que coincidir en la app madre.</div>';
+      'libreta y el de la forma de pago tienen que coincidir en la app principal.</div>';
   }
   h+='<div class="hsec">Permanentes con esta tarjeta ('+g.det.length+')</div>';
   h+= g.det.length? g.det.map(function(d){
@@ -2245,9 +2439,9 @@ function hojaCupoTj(nombre){
     '<div class="hsub">'+esc(nomVentana(k))+'</div>';
   if(!cu.hay){
     h+='<div class="nota">'+(cu.lim.sinTasa
-      ? 'El límite está anotado en '+esc(cu.lim.mon)+' y la app madre no tiene tasa para esa moneda, '+
+      ? 'El límite está anotado en '+esc(cu.lim.mon)+' y la app principal no tiene tasa para esa moneda, '+
         'así que no se convierte a lempiras. Sin eso no se puede estimar el disponible: no se inventa una tasa.'
-      : 'Esta tarjeta no tiene límite anotado en la libreta de la app madre. Sin límite no hay disponible que calcular.')+
+      : 'Esta tarjeta no tiene límite anotado en la libreta de la app principal. Sin límite no hay disponible que calcular.')+
       '</div>';
     abreHoja(h); return;
   }
@@ -2266,7 +2460,7 @@ function hojaCupoTj(nombre){
                             : "sin marcar como pagado: resta completo"))+
     ren("Disponible actual",cu.dispC,"tot fin","");
   if(cu.dispC<0) h+='<div class="nota">Negativo: entre lo financiado y lo consumido ya se pasó del límite anotado.</div>';
-  h+='<p class="sub">El corte anterior pesa mientras no esté marcado como pagado en la app madre, '+
+  h+='<p class="sub">El corte anterior pesa mientras no esté marcado como pagado en la app principal, '+
     'aunque la fecha de pago ya haya pasado: la app no da por hecho un pago que no está registrado. '+
     'Cada cuota de minicuota se descuenta del saldo cuando su movimiento existe, no cuando llega el mes.</p>';
   function lista(arr,tit,vacio,cuenta){
@@ -2286,7 +2480,7 @@ function hojaCupoTj(nombre){
   if(cu.fin.sinDato.length)
     h+=lista(cu.fin.sinDato,"Minicuotas sin datos de cuotas","",false)+
       '<div class="nota">No se sabe cuántas cuotas faltan, así que no se estima su saldo ni se descuenta del límite. '+
-      'Se arregla cargando «esta es la cuota N de M» en la app madre.</div>';
+      'Se arregla cargando «esta es la cuota N de M» en la app principal.</div>';
   if(cu.fin.ext.length)
     h+=lista(cu.fin.ext,"Extrafinanciamientos · informativos","",false)+
       '<div class="nota">No restan del límite acá: vos pediste que solo lo hicieran las minicuotas.</div>';
@@ -2331,7 +2525,7 @@ function hojaCotejo(k){
       '<div class="cot-e">'+expl+'</div></div>';
   }
   abreHoja('<h3>Presupuesto contra real</h3>'+
-    '<div class="hsub">'+esc(nomVentana(k))+' &middot; las mismas cifras de la app madre</div>'+
+    '<div class="hsub">'+esc(nomVentana(k))+' &middot; las mismas cifras de la app principal</div>'+
     fila("Ingresos",c.ing,"presupuesto: permanentes de ingreso activos &middot; real: movimientos de tipo Ingreso &middot; dif. = real − presupuesto")+
     fila("Gastos",c.egr,"presupuesto: suma del importe asignado a todos los rubros &middot; real: movimientos de tipo Egreso &middot; dif. = presupuesto − real, porque gastar menos suma a favor")+
     fila("Saldo",c.res,"presupuesto: ingreso presupuestado − gasto presupuestado; es el margen sin asignar a ningún rubro &middot; real: saldo real &middot; dif. = real − presupuesto")+
@@ -2342,7 +2536,7 @@ function hojaPresuVentana(k){
   var h='<h3>Presupuesto &middot; '+esc(nomVentana(k))+'</h3>'+
     '<div class="hsub">'+fmtC(tot)+' presupuestado &middot; '+fmtC(gas)+' gastado</div>'+
     '<p class="sub">Es la suma de todos los rubros con importe asignado en este corte — '+
-    'la misma cifra que la app madre muestra en <b>Presupuesto contra real → Gastos → presupuesto</b>. '+
+    'la misma cifra que la app principal muestra en <b>Presupuesto contra real → Gastos → presupuesto</b>. '+
     'Si algo no cuadra, la diferencia está en alguno de estos renglones.</p>';
   h+= rs.length? rs.map(function(r){
       return '<div class="mv"><span class="d">'+vin(r.cat)+esc(r.cat)+
@@ -2398,15 +2592,15 @@ function vRegistro(){
       '<button class="bgrande" data-acc="nota-nueva">Anotar una compra</button>'+
       (viv.length
         ? '<div class="sub" style="margin-top:9px"><b>'+viv.length+' anotaci'+
-          (viv.length===1?"ón":"ones")+' de '+fmtC(tot)+'</b> descuentan del disponible de '+
+          (viv.length===1?"ón":"ones")+' de '+fmtC(tot)+'</b> descuenta'+(viv.length===1?"":"n")+' del disponible de '+
           'este corte'+(sinR? ' &middot; '+sinR+' sin rubro, que no descuentan de ningún rubro' : '')+
-          '. No tocan el saldo real ni los cierres.</div>'
-        : '<div class="sub" style="margin-top:7px">Recordatorio suelto que descuenta del '+
-          'disponible mientras la compra no aparezca en el estado de cuenta.</div>')+
+          '. No toca'+(viv.length===1?"":"n")+' el saldo real ni los cierres.</div>'
+        : '<div class="sub" style="margin-top:7px">Anotá una compra apenas la hacés: '+
+          'descuenta del disponible hasta que la cargues en la app principal.</div>')+
       '<div class="sub" style="margin-top:5px">Firmando como <b>'+esc(nombreYo()||"sin nombre")+'</b> &middot; '+
         '<button class="lnk" data-acc="nombre">cambiar</button>'+
         (nCub? ' &middot; <button class="lnk" data-acc="ver-cubiertas">'+
-          (VISTA.cubiertas? "ocultar" : "ver")+' '+nCub+' cubierta'+(nCub===1?"":"s")+'</button>' : '')+
+          (VISTA.cubiertas? "ocultar" : "ver")+' '+nCub+' registrada'+(nCub===1?"":"s")+'</button>' : '')+
       '</div>'+
     '</div></div>';
   if(ERRN) h+='<div class="caja"><div class="nota" style="margin:10px 12px">'+
@@ -2438,19 +2632,19 @@ function listaNotas(arr){
       '<span class="a">'+(n.cat?vin(n.cat):"")+
         '<span class="f num">'+esc(fmtF(n.fecha))+'</span> &middot; '+
         esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
-        (n.cubierta? ' &middot; <b class="cubm">cubierta</b>' : '')+
+        (n.cubierta? ' &middot; <b class="cubm">registrada</b>' : '')+
         (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
         (!n.cat && !n.cubierta? ' &middot; <span class="cubm">sin rubro</span>' : '')+
       '</span>'+
       '<span class="ac">'+
       '<button class="cb" data-acc="'+(n.cubierta?"nota-descubrir":"nota-cubrir")+'" data-v="'+esc(n.id)+'" '+
-        'aria-label="'+(n.cubierta?"deshacer":"dar por cubierta")+'" '+
+        'aria-label="'+(n.cubierta?"deshacer":"marcar como registrada")+'" '+
         'title="'+(n.cubierta
-          ? "Cubierta: ya está en el estado de cuenta, así que dejó de descontar. Tocá para que vuelva a contar."
-          : "Dala por cubierta cuando el cargo ya aparezca en el estado de cuenta: deja de descontar y no se cuenta dos veces. Se puede deshacer.")+'">'+
+          ? "Registrada: ya existe como movimiento, así que dejó de descontar. Tocá para que vuelva a contar."
+          : "Marcala como registrada cuando ya la hayas cargado en la app principal o cuando aparezca en el estado de cuenta: deja de descontar y no se cuenta dos veces. Se puede deshacer.")+'">'+
         (n.cubierta? "&#10003;" : "")+'</button>'+
       '<button class="x" data-acc="nota-borrar" data-v="'+esc(n.id)+'" '+
-        'title="Borrar la anotación. Esto no es lo mismo que cubrirla: borrar la desaparece.">×</button></span></div>';
+        'title="Borrar la anotación. No es lo mismo que marcarla registrada: borrar la desaparece.">×</button></span></div>';
   }).join("");
 }
 
@@ -2528,16 +2722,28 @@ document.addEventListener("click", function(e){
   if(acc==="elegir"){ hojaElegir(); return; }
   if(acc==="vinetas"){ hojaVinetas(); return; }
   if(acc==="vineta"){
-    cicloRealce(v);
-    /* solo este renglón: repintar la hoja entera perdería el desplazamiento */
-    var fs2=document.querySelectorAll('[data-acc="vineta"]'), fv=null, i2;
-    for(i2=0;i2<fs2.length;i2++) if(fs2[i2].getAttribute("data-v")===v){ fv=fs2[i2]; break; }
-    if(fv){ var tmp=document.createElement("div"); tmp.innerHTML=filaVineta(v);
-      fv.parentNode.replaceChild(tmp.firstChild, fv); }
-    pinta();
+    VISTA.vinAbierta=(VISTA.vinAbierta===v? null : v);
+    repintaVinetas();
     return;
   }
-  if(acc==="vinetas-reset"){ guardaRealce(mapaDicho()); hojaVinetas(); pinta(); return; }
+  if(acc==="vineta-col"){
+    ponColor(v, t.getAttribute("data-c")||"");
+    repintaVinetas(); pinta();
+    return;
+  }
+  /* marcar el corte de una tarjeta como pagado · la única escritura sobre el
+     documento de la app principal. Dos toques: el primero arma, el segundo escribe. */
+  if(acc==="tj-pago"){ VISTA.pagoArma=v; pinta(); toast("Tocá otra vez para confirmar"); return; }
+  if(acc==="tj-pago-ok"){
+    var quiero=(t.getAttribute("data-p")==="1");
+    VISTA.pagoArma=null; pinta();
+    if(!FB_OK || !SESION){ toast("Sin sesión: no se guardó"); return; }
+    marcarPagadoNube(kAct(), v, quiero)
+      .then(function(){ toast(quiero? "Marcado como pagado" : "Marca quitada"); })
+      ["catch"](function(e){ toast("No se pudo: "+((e&&e.code)||(e&&e.message)||"error")); });
+    return;
+  }
+  if(acc==="vinetas-reset"){ guardaRealce(mapaDicho()); repintaVinetas(); pinta(); return; }
   if(acc==="elegir-ok"){
     var ms=document.querySelectorAll("#lista-int input:checked"), out=[];
     for(var i=0;i<ms.length;i++) out.push(ms[i].getAttribute("data-r"));
@@ -2604,10 +2810,10 @@ function hojaMenu(){
     '<div class="fila-aj"><span>Nombre en este aparato<br><span class="sub">'+
       esc(nombreYo()||"sin nombre")+'</span></span>'+
       '<button class="lnk" data-acc="nombre">cambiar</button></div>'+
-    '<div class="fila-aj"><span>Viñetas de los rubros<br><span class="sub">'+
+    '<div class="fila-aj"><span>Colores de los rubros<br><span class="sub">'+
       cuentaVinetas()+'</span></span>'+
       '<button class="lnk" data-acc="vinetas" '+
-        'title="El color al lado de cada rubro, en toda la app. Se guarda solo acá: la otra persona de la casa tiene las suyas.">cambiar</button></div>'+
+        'title="El color al lado de cada rubro, en toda la app. Se guarda solo acá: la otra persona de la casa tiene los suyos.">cambiar</button></div>'+
     '<div class="pasos"><button data-acc="cerrar-hoja">Cerrar</button>'+
       '<button data-acc="bloquear">Bloquear</button></div>');
 }
@@ -2617,7 +2823,7 @@ function hojaElegir(){
     return String(a.cat).localeCompare(String(b.cat)); });
   abreHoja('<h3>Rubros de interés</h3>'+
     '<div class="hsub">Los marcados salen grandes arriba. Se guarda solo en este aparato: '+
-      'no toca nada de la app madre y cada quien puede tener los suyos.</div>'+
+      'no toca nada de la app principal y cada quien puede tener los suyos.</div>'+
     '<div id="lista-int">'+rs.map(function(r){
       return '<label class="cbox"><input type="checkbox" data-r="'+esc(r.cat)+'"'+
         (sel.indexOf(r.cat)>=0?" checked":"")+'><span>'+vin(r.cat)+esc(r.cat)+'</span>'+
@@ -2625,37 +2831,55 @@ function hojaElegir(){
     '<div class="pasos"><button data-acc="cerrar-hoja">Cancelar</button>'+
       '<button class="pri" data-acc="elegir-ok">Guardar</button></div>');
 }
-/* ---------- viñetas de los rubros ----------
-   Un renglón por rubro, en el orden de la app madre. Se toca y cicla
-   0 → 3 → 2 → 1 → 0, sin guardar ni cancelar: cada toque ya queda. Repinta solo
-   el renglón tocado, no la hoja entera, para no perder el desplazamiento en una
-   lista larga. */
+/* ---------- colores de los rubros ----------
+   Un renglón por rubro, en el orden de la app principal. Se toca uno y se abre
+   su paleta: ocho tonos por tres intensidades, más «sin color». Cada elección
+   queda guardada al instante; no hay botón de guardar que se pueda olvidar. */
 function cuentaVinetas(){
   var rs=(S&&S.catE)||[], i, n=0;
-  for(i=0;i<rs.length;i++) if(realceRubro(rs[i])) n++;
+  for(i=0;i<rs.length;i++) if(colorRubro(rs[i])) n++;
   if(!rs.length) return "sin rubros todavía";
-  return n? n+" de "+rs.length+" con color" : "ninguna con color";
+  return n? n+" de "+rs.length+" con color" : "ninguno con color";
 }
 function filaVineta(c){
-  var n=realceRubro(c);
-  return '<button class="vfila" data-acc="vineta" data-v="'+esc(c)+'" '+
-    'title="Tocá para cambiarle el color. Va del más tenue al más intenso y vuelve a ninguno.">'+
-    '<span class="vmuestra">'+(n? '<i class="vn vn'+n+'"></i>' : '<i class="vn vn0"></i>')+'</span>'+
+  var x=colorRubro(c), ab=(VISTA.vinAbierta===c);
+  var h='<button class="vfila'+(ab?" ab":"")+'" data-acc="vineta" data-v="'+esc(c)+'" '+
+    'title="Tocá para elegirle color e intensidad.">'+
+    '<span class="vmuestra">'+(x? '<i class="vn" style="background:'+x.color+'"></i>'
+                                : '<i class="vn vn0"></i>')+'</span>'+
     '<span class="vnom">'+esc(c)+'</span>'+
-    '<span class="vniv">'+(n? "nivel "+n : "sin color")+'</span></button>';
+    '<span class="vniv">'+(x? esc(x.nom)+" "+INTENS[x.nivel-1] : "sin color")+'</span></button>';
+  if(!ab) return h;
+  h+='<div class="pal">'+TONOS.map(function(t){
+      return '<div class="pal-f"><span class="pal-n">'+esc(t.nom)+'</span>'+
+        t.c.map(function(col,i){
+          var v=t.id+"-"+(i+1);
+          return '<button class="pal-b'+(x&&x.tono===t.id&&x.nivel===i+1?" on":"")+'" '+
+            'style="background:'+col+'" data-acc="vineta-col" data-v="'+esc(c)+'" '+
+            'data-c="'+v+'" title="'+esc(t.nom)+' '+INTENS[i]+'" '+
+            'aria-label="'+esc(t.nom)+' '+INTENS[i]+'"></button>'; }).join("")+
+        '</div>'; }).join("")+
+    '<button class="pal-x" data-acc="vineta-col" data-v="'+esc(c)+'" data-c="">Sin color</button>'+
+    '</div>';
+  return h;
 }
 function hojaVinetas(){
   var rs=(S&&S.catE&&S.catE.length)? S.catE : [];
-  abreHoja('<h3>Viñetas de los rubros</h3>'+
-    '<div class="hsub">El color al lado del nombre, en toda la app. Tocá un rubro '+
-      'para subirle o quitarle el color. Se guarda en este aparato: no toca los datos '+
-      'y la otra persona de la casa tiene las suyas.</div>'+
+  abreHoja('<h3>Colores de los rubros</h3>'+
+    '<div class="hsub">El color va al lado del nombre, en toda la app. Tocá un rubro '+
+      'y elegí tono e intensidad. Se guarda en este aparato: no toca los datos '+
+      'y la otra persona de la casa tiene los suyos.</div>'+
     (rs.length
       ? '<div id="lista-vin">'+rs.map(filaVineta).join("")+'</div>'
-      : '<div class="vacio">La app madre todavía no tiene rubros de egreso.</div>')+
+      : '<div class="vacio">La app principal todavía no tiene rubros de egreso.</div>')+
     '<div class="pasos"><button data-acc="vinetas-reset" '+
-      'title="Vuelve a los tres niveles con los que salió la app.">Restablecer</button>'+
+      'title="Vuelve a los colores con los que salió la app.">Restablecer</button>'+
       '<button class="pri" data-acc="cerrar-hoja">Listo</button></div>');
+}
+/* Repinta solo la lista, no la hoja entera: así no se pierde el desplazamiento. */
+function repintaVinetas(){
+  var l=document.getElementById("lista-vin");
+  if(l && S && S.catE) l.innerHTML=S.catE.map(filaVineta).join("");
 }
 
 /* ---------- nombre corto de este aparato ---------- */
@@ -2713,17 +2937,15 @@ function notaPaso(n){
       esc(NOTA.que||"—")+' &middot; '+fmtC(cts(parseFloat(String(NOTA.monto).replace(/[^0-9.\-]/g,""))||0))+'</div>'+
       (rs.length
         ? '<div class="formas">'+rs.map(function(c){
-            var nv=realceRubro(c), cl=[];
-            if(nv) cl.push("nv"+nv);
+            var x=colorRubro(c), cl=[];
+            if(x) cl.push("tin");
             if(clave(c)===clave(NOTA.cat)) cl.push("on");
             return '<button data-acc="nota-cat" data-v="'+esc(c)+'"'+
               (cl.length?' class="'+cl.join(" ")+'"':'')+
-              (nv?' title="'+(nv===1?"De los que más anotás."
-                             :nv===2?"De los que anotás seguido."
-                                    :"De los que anotás de vez en cuando.")+'"':'')+
+              (x?' style="border-left-color:'+x.color+'"':'')+
               '>'+esc(c)+'</button>'; }).join("")+
           '<button data-acc="nota-cat" data-v="">Sin rubro</button></div>'
-        : '<div class="vacio">La app madre todavía no tiene rubros de egreso.</div>'+
+        : '<div class="vacio">La app principal todavía no tiene rubros de egreso.</div>'+
           '<div class="formas"><button data-acc="nota-cat" data-v="">Seguir sin rubro</button></div>')+
       '<div class="sub" style="margin-top:8px">Sin rubro la anotación igual cuenta '+
         'para el disponible de la tarjeta; lo que no hace es descontar de un rubro.</div>'+
@@ -2766,7 +2988,7 @@ function guardaNota(forma){
    app madre al pegar un estado de cuenta que ya trae esa compra. */
 function cubreNota(id,val){
   colNotas().doc(id).update({cubierta:!!val, cubiertaTs: val? Date.now() : null})
-    .then(function(){ toast(val? "Cubierta" : "Vuelve a contar"); })
+    .then(function(){ toast(val? "Registrada" : "Vuelve a contar"); })
     .catch(function(e){ toast("No se pudo: "+((e&&e.code)||"error")); });
 }
 /* Borrar en dos toques, sin cuadro de diálogo del navegador. */

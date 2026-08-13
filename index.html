@@ -574,6 +574,7 @@ var LL = {
   int:  llaveCuenta("finanzasSatelite_interes"), /* rubros de interés */
   entro:llaveCuenta("finanzasSatelite_entro"),   /* ya entró con PIN alguna vez */
   rlc:  llaveCuenta("finanzasSatelite_realce"),  /* realce de cada rubro · de QUIEN usa este aparato */
+   verk: llaveCuenta("finanzasSatelite_corte"),   /* el corte que estaba mirando */
   esc:  "finanzasSatelite_escala"                /* tamaño de letra · del APARATO */
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -721,8 +722,13 @@ function suscribir(){
     if(!doc || !doc.exists){ FUENTE="vacio"; pinta(); return; }
     var d=doc.data()||{};
     var fc = !!(doc.metadata && doc.metadata.fromCache);
-    if(d.datos && aplicarEstado(d.datos, d.ts||0, false, fc)) pinta();
-    else{ FUENTE = fc? "cache" : "vivo"; pinta(); }   /* cambió solo el estado de la conexión */
+    if(d.datos && aplicarEstado(d.datos, d.ts||0, false, fc)){ pinta(); return; }
+    /* Llegó un snapshot que no se pudo usar: sin datos, o con un JSON que no
+       sirve. Lo único que NO puede pasar acá es declararse EN VIVO — eso es el
+       rótulo mintiendo otra vez, ahora con la pantalla mostrando el caché. */
+    if(!d.datos){ FUENTE = S? (fc? "cache":"cache") : "vacio"; }
+    else{ ERR="dato ilegible"; FUENTE = S? "cache" : "mal"; }
+    pinta();
   }, function(e){
     ERR=(e&&e.code)||"error"; FUENTE = S? FUENTE : "mal"; pinta();
   });
@@ -738,8 +744,15 @@ function suscribir(){
       return b.ts-a.ts;
     });
     NOTAS=out; ERRN="";
-    if(VISTA.tab==="registro") pinta();
-  }, function(e){ ERRN=(e&&e.code)||"error"; if(VISTA.tab==="registro") pinta(); });
+    /* SIEMPRE se repinta, no solo en Registro. Cuando las anotaciones eran un
+       bloc, esto solo cambiaba esa pestaña y repintar de más era ruido. Desde que
+       son un SEGUNDO NÚMERO cambian el disponible de las tarjetas y lo que queda
+       de cada rubro: al abrir, la app pinta con NOTAS vacío y las anotaciones
+       llegan un instante después. Sin este repintado, quien abrió en Rubros o en
+       Tarjetas se quedaba viendo los números SIN anotaciones —disponible de más—
+       hasta que entrara a Registro. Repintar no le pide nada a la nube. */
+    pinta();
+  }, function(e){ ERRN=(e&&e.code)||"error"; pinta(); });
 }
 function desuscribir(){
   try{ if(desEstado) desEstado(); }catch(e){}
@@ -1854,7 +1867,7 @@ function estadoCorte(S,k,hoy){
    VISTA
 ============================================================================= */
 var VISTA={ tab:"rubros", k:null, rubro:null, verTodos:false, cierre:null, busca:"",
-            cubiertas:false };
+            cubiertas:false, otrosK:false, vinAbierta:null, pagoArma:null };
 var TABS=[["rubros","Rubros"],["tarjetas","Tarjetas"],
           ["cierres","Cierres"],["registro","Registro"]];
 
@@ -1888,11 +1901,47 @@ function vin(cat){
   var x=colorRubro(cat);
   return x? '<i class="vn" style="background:'+x.color+'" aria-hidden="true"></i>' : '';
 }
+/* EL CORTE QUE ESTOY MIRANDO · se recuerda en el aparato, pero con criterio.
+
+   Dos errores opuestos, y hay que esquivar los dos:
+
+   · No recordar nada → al recargar la app volvía sola al corte más nuevo. Como
+     el presupuesto y los permanentes se indexan por corte, refrescar cambiaba
+     las cifras en pantalla sin que nadie tocara un dato.
+
+   · Recordar a secas → si en la app principal se crea un corte nuevo, la
+     satélite se queda clavada en el viejo. Y ahí es peor: una anotación nueva
+     se sella con el corte viejo sin que nadie se entere.
+
+   El criterio: se recuerda SOLO si elegiste un corte que no era el más nuevo, o
+   sea si te fuiste a mirar atrás a propósito. Si estabas en el que corría,
+   seguís al que corra — aunque haya cambiado. Por eso se guarda junto al corte
+   cuál era el más nuevo en ese momento. */
+function ponK(k){
+  VISTA.k=k;
+  var ult=S? ultimaVentana(S):"";
+  VISTA.kEraUlt=(k===ult);
+  lsSet(LL.verk, k? (k+"@"+ult) : "");
+}
+function kGuardado(){
+  var t=lsGet(LL.verk)||"", i=t.lastIndexOf("@");
+  if(i<0) return null;
+  return {k:t.slice(0,i), ult:t.slice(i+1)};
+}
 function kAct(){
   if(!S) return "";
-  var v=ventanasOrd(S);
-  if(VISTA.k && v.indexOf(VISTA.k)>=0) return VISTA.k;
-  VISTA.k = ultimaVentana(S);
+  var v=ventanasOrd(S), ult=ultimaVentana(S);
+  if(VISTA.k && v.indexOf(VISTA.k)>=0){
+    /* estaba en el que corría y apareció uno más nuevo: lo sigue */
+    if(VISTA.kEraUlt && VISTA.k!==ult && ult){ ponK(ult); return VISTA.k; }
+    return VISTA.k;
+  }
+  var g=kGuardado();
+  /* g.k!==g.ult = me fui a mirar atrás a propósito. Eso sí se respeta. */
+  if(g && g.k && g.k!==g.ult && v.indexOf(g.k)>=0){
+    VISTA.k=g.k; VISTA.kEraUlt=false; return VISTA.k;
+  }
+  VISTA.k=ult; VISTA.kEraUlt=true;
   return VISTA.k;
 }
 function hoy(){ return new Date(); }
@@ -2047,7 +2096,12 @@ function filaRubro(r,mini){
      número grande las incluye y el registrado va debajo. El gastado y el
      presupuesto no se tocan — esos son de los movimientos. */
   var nt=notasRubroC(NOTAS,kAct(),r.cat);
+  /* Un rubro sin presupuesto NO tiene un "queda" del que descontar, pero sus
+     anotaciones existen igual y hay que decirlo. Antes se exigía presupuesto
+     para mostrarlas y en un corte recién creado —donde todavía no hay ninguno—
+     la anotación no aparecía en ningún lado. */
   var conNotas=(q!=null && nt.n>0);
+  var soloNotas=(q==null && nt.n>0);
   var qn=conNotas? q-nt.c : q;
   /* La barrita se queda con el GASTO REGISTRADO, no con las notas: al lado dice
      "gastado L 0.00" y una barra con relleno se contradiría con eso. El efecto
@@ -2059,7 +2113,10 @@ function filaRubro(r,mini){
         (q==null? '<span class="sub">sin presupuesto</span>' : fmtC(qn))+'</span></span>'+
     (conNotas? '<span class="con-reg">quedaban <b class="num">'+fmtC(q)+'</b> '+
         'y '+nt.n+' anotaci'+(nt.n===1?"ón":"ones")+' sin registrar descuentan '+
-        fmtC(nt.c)+'</span>' : '')+
+        fmtC(nt.c)+'</span>'
+     : soloNotas? '<span class="con-reg">'+nt.n+' anotaci'+(nt.n===1?"ón":"ones")+
+        ' sin registrar por <b class="num">'+fmtC(nt.c)+'</b> &middot; sin presupuesto '+
+        'no hay de qué descontarlas</span>' : '')+
     '<span class="r2"><span class="gas">gastado '+fmtC(gas)+'</span>'+
       (pres!=null? '<span class="pre">de '+fmtC(pres)+'</span>' : '')+
       (r.n? '<span>'+r.n+' mov.</span>':'')+'</span>'+
@@ -2579,10 +2636,23 @@ function pintaMapas(){
 function vRegistro(){
   var q=norm(VISTA.busca||""), k=kAct();
   /* Las cubiertas se esconden salvo que se pidan: ya no cuentan para nada. */
+  /* SOLO las de este corte. Todo lo demás en esta app es por corte, y mezclarlas
+     hacía que la lista contradijera al renglón de arriba: decía "3 anotaciones
+     descuentan de este corte" y abajo se veían seis. Las de otros cortes se
+     pueden pedir, y las que no tienen corte anotado —las viejas— salen con las
+     otras, porque no pertenecen a ninguno. */
   var arr=NOTAS.filter(function(n){
-    return coincide(n,q) && (VISTA.cubiertas || !n.cubierta);
+    if(!coincide(n,q)) return false;
+    if(!VISTA.cubiertas && n.cubierta) return false;
+    /* Sin corte anotado —las viejas— no son "de otro corte": no son de ninguno.
+       Esconderlas las volvería invisibles para siempre, así que se listan acá y
+       la fila dice «sin corte». No cuentan en ningún número, eso no cambia. */
+    return VISTA.otrosK? true : (!n.k || n.k===k);
   });
-  var nCub=NOTAS.filter(function(n){ return n.cubierta; }).length;
+  var nOtros=NOTAS.filter(function(n){
+    return n.k && n.k!==k && (VISTA.cubiertas || !n.cubierta);
+  }).length;
+  var nCub=NOTAS.filter(function(n){ return n.cubierta && n.k===k; }).length;
   var viv=notasVivas(NOTAS,k), tot=0;
   viv.forEach(function(n){ tot+=cts(n.monto); });
   var sinR=notasSinRubro(NOTAS,k);
@@ -2601,6 +2671,8 @@ function vRegistro(){
         '<button class="lnk" data-acc="nombre">cambiar</button>'+
         (nCub? ' &middot; <button class="lnk" data-acc="ver-cubiertas">'+
           (VISTA.cubiertas? "ocultar" : "ver")+' '+nCub+' registrada'+(nCub===1?"":"s")+'</button>' : '')+
+        (nOtros? ' &middot; <button class="lnk" data-acc="ver-otros-k">'+
+          (VISTA.otrosK? "ocultar" : "ver")+' '+nOtros+' de otros cortes</button>' : '')+
       '</div>'+
     '</div></div>';
   if(ERRN) h+='<div class="caja"><div class="nota" style="margin:10px 12px">'+
@@ -2622,7 +2694,10 @@ function coincide(n,q){
          (n.fecha||"").indexOf(q)>=0;
 }
 function listaNotas(arr){
-  if(!arr.length) return '<div class="vacio">'+(NOTAS.length? "Ninguna anotación coincide." : "Todavía no hay anotaciones.")+'</div>';
+  if(!arr.length) return '<div class="vacio">'+
+    (VISTA.busca? "Ninguna anotación coincide."
+     : NOTAS.length? "Ninguna anotación en este corte."
+     : "Todavía no hay anotaciones.")+'</div>';
   var k=kAct();
   return arr.map(function(n){
     var otra=(n.k && n.k!==k);
@@ -2633,7 +2708,7 @@ function listaNotas(arr){
         '<span class="f num">'+esc(fmtF(n.fecha))+'</span> &middot; '+
         esc([n.cat, n.pago, n.autor].filter(Boolean).join(" · ")||"—")+
         (n.cubierta? ' &middot; <b class="cubm">registrada</b>' : '')+
-        (otra? ' &middot; de '+esc(nomVentana(n.k)) : '')+
+        (otra? ' &middot; de '+esc(nomVentana(n.k)) : (!n.k? ' &middot; <span class="cubm">sin corte</span>' : ''))+
         (!n.cat && !n.cubierta? ' &middot; <span class="cubm">sin rubro</span>' : '')+
       '</span>'+
       '<span class="ac">'+
@@ -2703,14 +2778,14 @@ document.addEventListener("click", function(e){
 
   if(acc==="tab"){ VISTA.tab=v; VISTA.cierre=null; cierraHoja(); window.scrollTo(0,0); pinta(); return; }
   if(acc==="bloquear"){ bloquear(); return; }
-  if(acc==="ver-actual"){ VISTA.k=v; VISTA.cierre=null; pinta(); return; }
+  if(acc==="ver-actual"){ ponK(v); VISTA.cierre=null; pinta(); return; }
   if(acc==="cambiar-cuenta"){ cierraHoja(); bloquear(); setTimeout(pedirCuenta,120); return; }
   if(acc==="esc"){ cambiaEscala(v==="+"? 0.1 : -0.1); return; }
   if(acc==="ex"){ explica(t.getAttribute("data-ex")); return; }
   if(acc==="cerrar-hoja"){ cierraHoja(); return; }
   if(acc==="vertodos"){ VISTA.verTodos=!VISTA.verTodos; pinta(); return; }
   if(acc==="rubro"){
-    var kk=t.getAttribute("data-k"); if(kk){ VISTA.k=kk; }
+    var kk=t.getAttribute("data-k"); if(kk){ ponK(kk); }
     hojaRubro(v); return;
   }
   if(acc==="rubro-sel"){ VISTA.rubro=v; pinta(); return; }
@@ -2763,6 +2838,7 @@ document.addEventListener("click", function(e){
   if(acc==="nota-cubrir"){ cubreNota(v,true); return; }
   if(acc==="nota-descubrir"){ cubreNota(v,false); return; }
   if(acc==="ver-cubiertas"){ VISTA.cubiertas=!VISTA.cubiertas; pinta(); return; }
+  if(acc==="ver-otros-k"){ VISTA.otrosK=!VISTA.otrosK; pinta(); return; }
   if(acc==="tj-gasto"){ hojaGastoTj(v); return; }
   if(acc==="tj-cupo"){ hojaCupoTj(v); return; }
   if(acc==="tj-ics"){ bajaIcs(v); return; }
@@ -2776,7 +2852,7 @@ document.addEventListener("keydown", function(e){
 }, false);
 document.addEventListener("change", function(e){
   var t=e.target;
-  if(t && t.id==="selK"){ VISTA.k=t.value; VISTA.cierre=null; pinta(); }
+  if(t && t.id==="selK"){ ponK(t.value); VISTA.cierre=null; pinta(); }
 }, false);
 document.addEventListener("input", function(e){
   var t=e.target;
@@ -2911,7 +2987,8 @@ function notaPaso(n){
   if(n>=4) NOTA.monto=leeCampo("nMonto")||NOTA.monto;
   var h,foco;
   if(n===1){
-    h='<h3>¿Qué día fue?</h3><div class="hsub">Paso 1 de 5</div>'+
+    h='<h3>¿Qué día fue?</h3><div class="hsub">Paso 1 de 5 &middot; va al corte '+
+      esc(nomVentana(kAct()))+'</div>'+
       '<div class="paso"><input id="nFecha" type="date" value="'+esc(NOTA.fecha||hoyISO())+'"></div>'+
       '<div class="pasos"><button data-acc="cerrar-hoja">Cancelar</button>'+
         '<button class="pri" data-acc="nota-paso" data-v="2">Siguiente</button></div>';
@@ -2981,7 +3058,7 @@ function guardaNota(forma){
           autor:nombreYo()||"sin nombre", ts:Date.now() };
   cierraHoja();
   colNotas().add(d)
-    .then(function(){ toast(NOTA.cat? "Anotado" : "Anotado, sin rubro"); })
+    .then(function(){ toast("Anotado en "+nomVentana(d.k)+(NOTA.cat? "" : " · sin rubro")); })
     .catch(function(e){ toast("No se pudo guardar: "+((e&&e.code)||"error")); });
 }
 /* Cubrir es una MARCA, no un borrado: se puede deshacer. La pone él acá, o la

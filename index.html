@@ -506,6 +506,9 @@ main{padding:10px 12px 20px}
 .faja u{font-weight:700}
 .faja.previa{background:#e2670c}
 .faja.vieja{background:#c02626}
+/* El renglón verde: mismo formato, otro lado de la misma verdad. Las tarjetas
+   que TODAVÍA cargan contra el corte que estás viendo. */
+.faja.sigue{background:#2f7a37}
 #marco{position:fixed;inset:0;pointer-events:none;z-index:55;border:0 solid transparent}
 #marco.previa{border:5px solid #e2670c}
 #marco.vieja{border:5px solid #c02626}
@@ -1852,6 +1855,53 @@ function iniVentana(S,k){
 
    El último caso importa: sin movimientos no se sabe cuándo nació, y se avisa
    flojo en vez de gritar. Las fechas deciden cuánto avisar, nunca un monto. */
+/* QUÉ TARJETAS YA CORTARON Y CUÁLES NO · una ventana es un MOSAICO de fechas de
+   corte, no un rango. Cuando aparece una ventana nueva, no todas las tarjetas se
+   mudaron a la vez: la que ya cortó carga contra la nueva, la que todavía no
+   sigue cargando contra la que estás viendo.
+
+   Se decide por el día de corte de cada tarjeta contra el día de hoy, que es
+   información —no toca un solo monto (regla 3)—. Una tarjeta sin día de corte
+   anotado no entra en ningún grupo: no se adivina. */
+function cortesTarjetas(S,hoy){
+  var ya=[], falta=[];
+  (S&&S.tarjetas||[]).forEach(function(t){
+    if(!t || !t.nombre) return;
+    var pl=plazoDe(t,hoy);
+    if(pl.hastaCorte==null) return;
+    /* La pregunta es en qué corte cae una compra de HOY, y eso lo decide el
+       período abierto de esa tarjeta: va de su corte anterior al siguiente. Si
+       ese período arrancó ESTE mes, la tarjeta ya se mudó al corte nuevo; si
+       arrancó el mes pasado, sigue cargando contra el que estás viendo.
+
+       Se compara el mes del corte anterior, no "cuál queda más cerca": a fin de
+       mes eso daba al revés —una tarjeta que cortó el 9 y vuelve a cortar el 9
+       del mes que viene aparecía como si todavía no hubiera cortado—. */
+    var an=corteAnterior(t.corte,hoy), h=dsol(hoy);
+    var esteMes=(an.getFullYear()===h.getFullYear() && an.getMonth()===h.getMonth());
+    if(pl.hastaCorte===0) ya.push({nombre:t.nombre, dias:0, hoy:true});
+    else if(esteMes) ya.push({nombre:t.nombre, dias:pl.desdeCorte});
+    else falta.push({nombre:t.nombre, dias:pl.hastaCorte});
+  });
+  ya.sort(function(a,b){ return a.dias-b.dias; });
+  falta.sort(function(a,b){ return a.dias-b.dias; });
+  return {cortaron:ya, siguen:falta};
+}
+function listaNom(a){
+  var n=a.map(function(x){ return x.nombre; });
+  if(n.length<=1) return n.join("");
+  return n.slice(0,-1).join(", ")+" y "+n[n.length-1];
+}
+/* Cada tarjeta con SUS días. Un "hace 2 días o más" para todas no dice cuál es
+   cuál, que es justamente para lo que sirve el aviso. */
+function listaDias(a,verbo){
+  return a.map(function(x){
+    var d = x.hoy? "hoy"
+          : (verbo==="corta"? "en " : "hace ")+x.dias+(x.dias===1?" día":" días");
+    return x.nombre+" "+(verbo==="corta"? (x.hoy?"corta hoy":"corta "+d)
+                                        : (x.hoy?"cortó hoy":"cortó "+d));
+  }).join(" &middot; ");
+}
 function estadoCorte(S,k,hoy){
   var ult=ultimaVentana(S);
   if(!ult || !k) return {previa:false, nivel:"", ultima:ult, dias:null};
@@ -2025,9 +2075,18 @@ function fajaCorte(){
   var t = e.nivel==="vieja"? "CORTE VIEJO" : "CORTE ANTERIOR";
   /* corto a propósito: el corte que estás viendo ya está en el selector de
      arriba, repetirlo acá solo agrega renglones */
+  /* Los dos renglones dicen lo mismo desde los dos lados: cuáles tarjetas ya se
+     fueron al corte nuevo y cuáles siguen cargando contra el que estás viendo.
+     Sin nombres no se puede saber cuál es cuál, y esa es toda la gracia. */
+  var ct=cortesTarjetas(S,hoy());
+  var vieron=ct.cortaron.length? ' &middot; '+listaDias(ct.cortaron,"cortó") : '';
+  var verde = ct.siguen.length
+    ? '<div class="faja sigue" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
+      '<b>SIGUEN EN ESTE CORTE</b> &middot; '+listaDias(ct.siguen,"corta")+'</div>'
+    : '';
   return '<div class="faja '+e.nivel+'" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
     '<b>'+t+'</b> &middot; el que corre es '+esc(nomVentana(e.ultima))+
-    ' <u>ir</u></div>';
+    vieron+' <u>ir</u></div>'+verde;
 }
 /* El marco: un recuadro de color alrededor de toda la pantalla, para que no se
    pierda al hacer scroll. Va FUERA de #app, como la barra: una caja fixed

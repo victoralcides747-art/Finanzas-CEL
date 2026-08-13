@@ -71,7 +71,7 @@ select.sel-k{flex:0 1 auto;max-width:60%;font-size:17px;font-weight:700;border-w
   padding:9px 8px}
 select.sel-k.aldia{background:#e7f4e7;border-color:#3f8c46;color:#0d5c17}
 select.sel-k.previa{background:#fdf0dd;border-color:#e2670c;color:#8a3d02}
-select.sel-k.vieja{background:#fbe6e6;border-color:#c02626;color:#8c1414}
+select.sel-k.cerrada{background:#fbe6e6;border-color:#c02626;color:#8c1414}
 .hbtn.men{font-size:22px;line-height:1;padding:4px 12px 9px;letter-spacing:1px}
 /* SIN wrap adentro: si el porcentaje y los botones envuelven entre ellos, se
    montan y A+ deja de ser tocable. Lo que envuelve es la fila entera (.fila-aj),
@@ -505,13 +505,16 @@ main{padding:10px 12px 20px}
 .faja b{font-weight:800;letter-spacing:.04em}
 .faja u{font-weight:700}
 .faja.previa{background:#e2670c}
-.faja.vieja{background:#c02626}
+.faja.cerrada{background:#c02626}
 /* El renglón verde: mismo formato, otro lado de la misma verdad. Las tarjetas
    que TODAVÍA cargan contra el corte que estás viendo. */
 .faja.sigue{background:#2f7a37}
+/* El azul: parado en el corte que corre, cuáles tarjetas todavía cargan contra
+   el anterior. Mismo formato, otro lado de la misma verdad. */
+.faja.atras{background:#1f5f9e}
 #marco{position:fixed;inset:0;pointer-events:none;z-index:55;border:0 solid transparent}
 #marco.previa{border:5px solid #e2670c}
-#marco.vieja{border:5px solid #c02626}
+#marco.cerrada{border:5px solid #c02626}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(var(--barra) + var(--safe-b) + 12px);
   background:#25252a;color:#f2f2f0;padding:14px 16px;border-radius:9px;font-size:16.5px;
   z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.22)}
@@ -577,7 +580,6 @@ var LL = {
   int:  llaveCuenta("finanzasSatelite_interes"), /* rubros de interés */
   entro:llaveCuenta("finanzasSatelite_entro"),   /* ya entró con PIN alguna vez */
   rlc:  llaveCuenta("finanzasSatelite_realce"),  /* realce de cada rubro · de QUIEN usa este aparato */
-   verk: llaveCuenta("finanzasSatelite_corte"),   /* el corte que estaba mirando */
   esc:  "finanzasSatelite_escala"                /* tamaño de letra · del APARATO */
 };
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
@@ -1845,16 +1847,6 @@ function iniVentana(S,k){
   }
   return min;
 }
-/* EL ESTADO DEL CORTE QUE ESTÁS VIENDO. Mirar un corte viejo creyendo que son
-   los números de hoy es el error caro.
-
-     estás en el más nuevo                        → "aldia"     verde
-     hay uno más nuevo, y nació hace ≤ 7 días     → "previa"    amarillo
-     hay uno más nuevo, y ya lleva más de 7 días  → "vieja"     rojo
-     hay uno más nuevo pero sin movimientos       → "previa"    amarillo
-
-   El último caso importa: sin movimientos no se sabe cuándo nació, y se avisa
-   flojo en vez de gritar. Las fechas deciden cuánto avisar, nunca un monto. */
 /* QUÉ TARJETAS YA CORTARON Y CUÁLES NO · una ventana es un MOSAICO de fechas de
    corte, no un rango. Cuando aparece una ventana nueva, no todas las tarjetas se
    mudaron a la vez: la que ya cortó carga contra la nueva, la que todavía no
@@ -1902,14 +1894,35 @@ function listaDias(a,verbo){
                                         : (x.hoy?"cortó hoy":"cortó "+d));
   }).join(" &middot; ");
 }
+/* EL ESTADO DEL CORTE QUE ESTÁS VIENDO. Mirar un corte viejo creyendo que son
+   los números de hoy es el error caro, y hay TRES situaciones, no dos:
+
+     el más nuevo                         → "aldia"    verde, sin aviso
+     el inmediato anterior, y todavía
+     hay tarjetas cargando contra él      → "previa"   naranja + el renglón verde
+     el inmediato anterior, pero YA
+     cortaron todas sus tarjetas          → "cerrada"  rojo, sin renglón verde
+     dos o más atrás                      → "cerrada"  rojo
+
+   Lo que faltaba: una ventana está CERRADA cuando todas sus formas de pago ya
+   cortaron. Antes se medía por días desde que nació la ventana nueva —una
+   semana— y eso era arbitrario; y peor, una ventana de hace meses mostraba el
+   mismo aviso que la de ayer, con tarjetas "que siguen en este corte" cuando
+   hacía rato que ninguna.
+
+   Sin ninguna tarjeta con día de corte anotado no se puede saber: se avisa
+   flojo ("previa") en vez de afirmar que cerró. Las fechas deciden cuánto hay
+   que gritar, nunca un monto (regla 3). */
 function estadoCorte(S,k,hoy){
   var ult=ultimaVentana(S);
-  if(!ult || !k) return {previa:false, nivel:"", ultima:ult, dias:null};
-  if(k===ult) return {previa:false, nivel:"aldia", ultima:ult, dias:null};
-  var ini=iniVentana(S,ult);
-  var dias = ini? diasEntre(new Date(ini+"T00:00:00"), hoy) : null;
-  var nivel = (dias!==null && dias>7)? "vieja" : "previa";
-  return {previa:true, nivel:nivel, ultima:ult, dias:dias};
+  if(!ult || !k) return {previa:false, nivel:"", ultima:ult, ct:null};
+  if(k===ult) return {previa:false, nivel:"aldia", ultima:ult, ct:null};
+  var prev=ventanaPrevia(S,ult);
+  if(k!==prev) return {previa:true, nivel:"cerrada", ultima:ult, ct:null};
+  var ct=cortesTarjetas(S,hoy);
+  var hay=ct.cortaron.length+ct.siguen.length;
+  var nivel = (hay===0)? "previa" : (ct.siguen.length? "previa" : "cerrada");
+  return {previa:true, nivel:nivel, ultima:ult, ct:ct};
 }
 /*==LOGICA-FIN==*/
 
@@ -1951,45 +1964,25 @@ function vin(cat){
   var x=colorRubro(cat);
   return x? '<i class="vn" style="background:'+x.color+'" aria-hidden="true"></i>' : '';
 }
-/* EL CORTE QUE ESTOY MIRANDO · se recuerda en el aparato, pero con criterio.
+/* EL CORTE QUE ESTOY MIRANDO · abre SIEMPRE en el más nuevo.
 
-   Dos errores opuestos, y hay que esquivar los dos:
+   Se probó recordarlo entre recargas, para que refrescar no cambiara las cifras
+   en pantalla. El remedio salió peor: quedarse clavado en un corte viejo es más
+   peligroso que abrir en el nuevo, porque una anotación se sella con el corte
+   que estés viendo. Ahora abre en el que corre y el aviso de arriba —azul,
+   naranja o rojo— dice siempre en cuál estás; el cambio deja de ser silencioso,
+   que era el problema de fondo.
 
-   · No recordar nada → al recargar la app volvía sola al corte más nuevo. Como
-     el presupuesto y los permanentes se indexan por corte, refrescar cambiaba
-     las cifras en pantalla sin que nadie tocara un dato.
-
-   · Recordar a secas → si en la app principal se crea un corte nuevo, la
-     satélite se queda clavada en el viejo. Y ahí es peor: una anotación nueva
-     se sella con el corte viejo sin que nadie se entere.
-
-   El criterio: se recuerda SOLO si elegiste un corte que no era el más nuevo, o
-   sea si te fuiste a mirar atrás a propósito. Si estabas en el que corría,
-   seguís al que corra — aunque haya cambiado. Por eso se guarda junto al corte
-   cuál era el más nuevo en ese momento. */
-function ponK(k){
-  VISTA.k=k;
-  var ult=S? ultimaVentana(S):"";
-  VISTA.kEraUlt=(k===ult);
-  lsSet(LL.verk, k? (k+"@"+ult) : "");
-}
-function kGuardado(){
-  var t=lsGet(LL.verk)||"", i=t.lastIndexOf("@");
-  if(i<0) return null;
-  return {k:t.slice(0,i), ult:t.slice(i+1)};
-}
+   Dentro de la sesión sí se respeta lo que elijas: cambiar de pestaña no te
+   mueve de corte. Solo el arranque vuelve al más nuevo. */
+function ponK(k){ VISTA.k=k; VISTA.kEraUlt=(k===(S? ultimaVentana(S):"")); }
 function kAct(){
   if(!S) return "";
   var v=ventanasOrd(S), ult=ultimaVentana(S);
   if(VISTA.k && v.indexOf(VISTA.k)>=0){
     /* estaba en el que corría y apareció uno más nuevo: lo sigue */
-    if(VISTA.kEraUlt && VISTA.k!==ult && ult){ ponK(ult); return VISTA.k; }
+    if(VISTA.kEraUlt && VISTA.k!==ult && ult){ VISTA.k=ult; return VISTA.k; }
     return VISTA.k;
-  }
-  var g=kGuardado();
-  /* g.k!==g.ult = me fui a mirar atrás a propósito. Eso sí se respeta. */
-  if(g && g.k && g.k!==g.ult && v.indexOf(g.k)>=0){
-    VISTA.k=g.k; VISTA.kEraUlt=false; return VISTA.k;
   }
   VISTA.k=ult; VISTA.kEraUlt=true;
   return VISTA.k;
@@ -2070,23 +2063,48 @@ function haceCuanto(ts){
    estás viendo y cuál es el que corre. */
 function fajaCorte(){
   if(!S) return "";
-  var e=estadoCorte(S,kAct(),hoy());
+  var k=kAct(), e=estadoCorte(S,k,hoy());
+  /* EN EL CORTE QUE CORRE · aviso azul. La app abre siempre acá, y hay una cosa
+     que hay que saber antes de creerle a un número: puede haber tarjetas que
+     TODAVÍA cargan contra el corte anterior. Lo que comprés con ellas hoy no cae
+     en esta pantalla. Es el espejo del renglón verde, visto desde el otro lado.
+     Se va solo en cuanto la última corta — que es el mismo momento en el que el
+     corte anterior pasa a cerrado. */
+  if(e.nivel==="aldia"){
+    var prev=ventanaPrevia(S,k);
+    if(!prev) return "";
+    var c0=cortesTarjetas(S,hoy());
+    if(!c0.siguen.length) return "";
+    return '<div class="faja atras" data-acc="ver-actual" data-v="'+esc(prev)+'">'+
+      '<b>'+(c0.siguen.length===1?"1 TARJETA":c0.siguen.length+" TARJETAS")+
+      ' EN EL CORTE ANTERIOR</b> &middot; '+listaDias(c0.siguen,"corta")+
+      ' &middot; lo que comprés con '+(c0.siguen.length===1?"ella":"ellas")+
+      ' cae en '+esc(nomVentana(prev))+' <u>ver</u></div>';
+  }
   if(!e.previa) return "";
-  var t = e.nivel==="vieja"? "CORTE VIEJO" : "CORTE ANTERIOR";
+  var cerrada=(e.nivel==="cerrada");
+  var t = cerrada? "CORTE CERRADO" : "CORTE ANTERIOR";
   /* corto a propósito: el corte que estás viendo ya está en el selector de
      arriba, repetirlo acá solo agrega renglones */
   /* Los dos renglones dicen lo mismo desde los dos lados: cuáles tarjetas ya se
      fueron al corte nuevo y cuáles siguen cargando contra el que estás viendo.
      Sin nombres no se puede saber cuál es cuál, y esa es toda la gracia. */
-  var ct=cortesTarjetas(S,hoy());
-  var vieron=ct.cortaron.length? ' &middot; '+listaDias(ct.cortaron,"cortó") : '';
-  var verde = ct.siguen.length
+  /* El detalle por tarjeta SOLO tiene sentido en el corte inmediato anterior: es
+     el único que todavía puede estar recibiendo cargos. En uno de hace meses
+     nombrar tarjetas sería mentira, y era lo que pasaba. */
+  var ct=e.ct;
+  var vieron=(ct && ct.cortaron.length)? ' &middot; '+listaDias(ct.cortaron,"cortó") : '';
+  var verde = (ct && ct.siguen.length)
     ? '<div class="faja sigue" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
       '<b>SIGUEN EN ESTE CORTE</b> &middot; '+listaDias(ct.siguen,"corta")+'</div>'
     : '';
+  var cerr = cerrada
+    ? ' &middot; ya cortaron todas sus tarjetas'+
+      ((ct && ct.cortaron.length)? '' : ', esta ventana ya cerró')
+    : '';
   return '<div class="faja '+e.nivel+'" data-acc="ver-actual" data-v="'+esc(e.ultima)+'">'+
     '<b>'+t+'</b> &middot; el que corre es '+esc(nomVentana(e.ultima))+
-    vieron+' <u>ir</u></div>'+verde;
+    (cerrada? cerr : vieron)+' <u>ir</u></div>'+verde;
 }
 /* El marco: un recuadro de color alrededor de toda la pantalla, para que no se
    pierda al hacer scroll. Va FUERA de #app, como la barra: una caja fixed
@@ -2118,8 +2136,8 @@ function cabecera(){
       '<span class="marca">Finanzas</span>'+
       (S? '<select class="pill sel-k '+(ec.nivel||"")+'" id="selK" data-acc="ventana" '+
         'title="'+(ec.nivel==="aldia"? "Es el corte que corre."
-                 : ec.nivel==="vieja"? "Estás viendo un corte viejo: ya hay uno más nuevo desde hace más de una semana."
-                 : "Estás viendo un corte anterior: ya hay uno más nuevo.")+'">'+
+                 : ec.nivel==="cerrada"? "Este corte ya cerró: todas sus tarjetas cortaron."
+                 : "Estás viendo el corte anterior: ya hay uno más nuevo, pero todavía hay tarjetas cargando contra este.")+'">'+
         v.map(function(x){ return '<option value="'+esc(x)+'"'+(x===k?" selected":"")+'>'+
           esc(nomVentana(x))+'</option>'; }).join("")+'</select>' : '')+
       '<span class="sp"></span>'+

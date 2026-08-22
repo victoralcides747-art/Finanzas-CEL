@@ -1111,10 +1111,10 @@ function totPresuC(S,k){ var p=presuDe(S,k), c=0;
   Object.keys(p).forEach(function(x){ if(p[x]!=null&&p[x]!=="") c+=cts(p[x]); }); return c; }
 /* INGRESO PRESUPUESTADO: los permanentes de ingreso activos de la ventana.
    Es lo que la app principal llama "ingresos · presupuesto". */
-function planIngresosC(S,k){
+function planIngresosC(S,k,hoyIso){
   var c=0;
   permsK(S,k).forEach(function(p){
-    if(p && p.activo!==false && (p.tipo||"Egreso")==="Ingreso") c+=cts(p.monto);
+    if((p&&(p.tipo||"Egreso"))==="Ingreso" && permCuenta(S,p,k,hoyIso)) c+=cts(p.monto);
   });
   return c;
 }
@@ -1124,9 +1124,9 @@ function planIngresosC(S,k){
      gastos   → plan = suma del presupuesto por rubro · real = movimientos
      saldo    → plan = ingreso presupuestado − gasto presupuestado
    La diferencia va siempre A FAVOR en positivo: en gastos es plan − real. */
-function cotejoC(S,k){
+function cotejoC(S,k,hoyIso){
   var ing=ingresosC(S,k), egr=gastosC(S,k), queda=ing-egr;
-  var pi=planIngresosC(S,k), pg=totPresuC(S,k), pr=pi-pg;
+  var pi=planIngresosC(S,k,hoyIso), pg=totPresuC(S,k), pr=pi-pg;
   return {
     ing:{plan:pi, real:ing,   dif:ing-pi},
     egr:{plan:pg, real:egr,   dif:pg-egr},
@@ -1135,7 +1135,7 @@ function cotejoC(S,k){
 }
 /* SIN PRESUPUESTAR = el "saldo · presupuesto" de la madre: lo que ella marca
    como el margen que todavía no está asignado a ningún rubro. */
-function sinPresupuestarC(S,k){ return cotejoC(S,k).res.plan; }
+function sinPresupuestarC(S,k,hoyIso){ return cotejoC(S,k,hoyIso).res.plan; }
 
 /* =============================================================================
    PROYECCIÓN · FUERA DEL SALDO REAL
@@ -1157,10 +1157,11 @@ function sinPresupuestarC(S,k){ return cotejoC(S,k).res.plan; }
    Nada de esto es dinero real y por eso va rotulado aparte, igual que en ella.
 ============================================================================= */
 function catAhorro(S){ return (S&&S.prefs&&S.prefs.rubroAhorro) || "Ahorro"; }
-function ingresoPendienteC(S,k){
+function ingresoPendienteC(S,k,hoyIso){
   var porCat={}, det=[], tot=0, real={};
-  permsActivosK(S,k).forEach(function(f){
-    if((f.tipo||"Egreso")!=="Ingreso") return;
+  permsK(S,k).forEach(function(f){
+    if(!f || (f.tipo||"Egreso")!=="Ingreso") return;
+    if(!permCuenta(S,f,k,hoyIso)) return;              /* en pausa, terminado o no toca */
     if(movDePerm(S,k,f.id)) return;                    /* ya marcado: ya es real */
     var c=f.cat||f.desc||"Sin categoría";
     porCat[c]=(porCat[c]||0)+cts(f.monto);
@@ -1176,7 +1177,7 @@ function ingresoPendienteC(S,k){
   det.sort(function(a,b){ return b.val-a.val; });
   return {pendiente:tot, det:det};
 }
-function compromisoC(S,k,hoyIso){
+function compromisoC(S,k,hoyIso,notas){
   var pend=0, det=[], ca=catAhorro(S), res=0;
   rubrosDe(S,k,hoyIso).forEach(function(r){
     /* Un rubro que solo recibe devoluciones tiene gasto NEGATIVO. Restar un
@@ -1184,17 +1185,25 @@ function compromisoC(S,k,hoyIso){
        reembolsos daba +279), así que el gasto se topa en cero SOLO para esta
        cuenta. Para mostrar, el negativo se deja: es real. */
     var g=Math.max(0, r.gastoC);
-    var porPres=(r.presC)? Math.max(0, r.presC-g) : 0;
-    var porPerm=r.permPendC;
+    var porPres=(r.presC!=null)? Math.max(0, r.presC-g) : 0;
+    /* Lo que TODAVÍA tiene que salir de este rubro: los permanentes sin pagar MÁS
+       lo anotado en el registro manual, que es gasto ya hecho y sin copiar de la
+       banca. Los dos son obligaciones y no se pisan, así que se suman entre sí —
+       pero contra el presupuesto se toma el MAYOR, nunca la suma: si el
+       presupuesto ya los cubre, sumarlo encima sería contar dos veces.
+       Copiado literal de la app principal. */
+    var nt=Math.max(0, notasRubroC(notas||[],k,r.cat).c);
+    var porPerm=r.permPendC+nt;
     var v=Math.max(porPres,porPerm);
     if(v>0){
       pend+=v;
-      det.push({cat:r.cat, porPres:porPres, porPerm:porPerm, val:v, ahorro:(r.cat===ca)});
+      det.push({cat:r.cat, porPres:porPres, porPerm:porPerm, notas:nt, val:v,
+                ahorro:(r.cat===ca)});
       if(r.cat===ca) res=v;
     }
   });
   det.sort(function(a,b){ return b.val-a.val; });
-  var queda=saldoC(S,k), ip=ingresoPendienteC(S,k);
+  var queda=saldoC(S,k), ip=ingresoPendienteC(S,k,hoyIso);
   /* El rubro de ahorro cuenta como compromiso MIENTRAS la ventana está viva:
      esa plata no está disponible. Al cerrar vuelve a ser ahorro. */
   var libre=queda+ip.pendiente-pend;
@@ -1221,8 +1230,8 @@ function apartadoAhorroC(S,k){
    La proyección honesta parte del saldo LIBRE, que ya descontó los compromisos, y
    le suma lo que se va a apartar al ahorro: eso sale del saldo pero no se va. */
 function ahorroAlCerrarC(S,k){ return sobroC(S,k); }
-function ahorroProyC(S,k,hoyIso){
-  var ap=apartadoAhorroC(S,k), c=compromisoC(S,k,hoyIso);
+function ahorroProyC(S,k,hoyIso,notas){
+  var ap=apartadoAhorroC(S,k), c=compromisoC(S,k,hoyIso,notas);
   return {apartado:ap, falta:c.ahorroPend, libre:c.libre,
           total:ap+c.ahorroPend+c.libre,
           /* Sin rubro de ahorro con algo apartado o pendiente, el ahorro
@@ -1241,10 +1250,30 @@ function movsCat(S,k,cat){
    más los de los permanentes activos. */
 function permsK(S,k){ return ((S.perms||{})[k])||[]; }
 function permsActivosK(S,k){ return permsK(S,k).filter(function(f){ return f && f.activo!==false; }); }
+/* ¿ESTE PERMANENTE CUENTA EN ESTA VENTANA? · copiado literal de la app principal.
+   Tres motivos para que NO cuente, y ninguno borra nada:
+     · está en pausa;
+     · TERMINÓ de pagarse — su última cuota quedó atrás; un financiamiento que ya
+       se pagó no puede seguir apareciendo como plata que va a salir;
+     · no es mensual y su próximo cobro todavía no llegó.
+   Faltaba el del medio, y por eso la satélite daba MÁS comprometido que la app
+   principal: seguía contando un financiamiento terminado. */
+function cuotaVencida(f,k){
+  var uc=f.ultimaCuota||f.hasta; if(!uc) return false;
+  var q=String(uc).split("-"), aa=parseInt(q[0],10), mm=parseInt(q[1],10);
+  if(isNaN(aa)||isNaN(mm)) return false;
+  var kp=String(k).split("|"), i=PERIODOS.indexOf(kp[1]);
+  if(i<0) return false;
+  return (aa*12+(mm-1)) < (parseInt(kp[0],10)*12+i);   /* venció antes del 1er mes */
+}
+function permTerminado(f,k){ return cuotaVencida(f,k); }
+function permCuenta(S,f,k,hoyIso){
+  return f && f.activo!==false && !permTerminado(f,k) && permToca(S,f,hoyIso);
+}
 /* Los permanentes de gasto de un rubro que este período tocan — igual que la madre. */
 function permsDeRubro(S,k,cat,hoyIso){
-  return permsActivosK(S,k).filter(function(p){
-    return (p.tipo||"Egreso")!=="Ingreso" && (p.cat||"Sin categoría")===cat && permToca(S,p,hoyIso);
+  return permsK(S,k).filter(function(p){
+    return (p.tipo||"Egreso")!=="Ingreso" && (p.cat||"Sin categoría")===cat && permCuenta(S,p,k,hoyIso);
   });
 }
 function rubrosDe(S,k,hoyIso){
@@ -1548,7 +1577,7 @@ function permsTarjeta(S,k,nombre,hoyIso){
     if((f.tipo||"Egreso")!=="Egreso") return;
     if(!(cts(f.monto)>0)) return;
     if(!mismoPago(f.pago,nombre)) return;
-    if(!permToca(S,f,hoyIso)) return;
+    if(!permCuenta(S,f,k,hoyIso)) return;
     var reg=!!movDePerm(S,k,f.id);
     det.push({desc:f.desc||f.cat||"permanente", cat:f.cat||"", c:cts(f.monto), reg:reg});
     if(!reg) pend+=cts(f.monto);
@@ -1795,7 +1824,9 @@ function squarify(datos,W,H){
 /* Las que cuentan: de esta ventana y sin cubrir. */
 function notasVivas(notas,k){
   return (notas||[]).filter(function(n){
-    return n && !n.cubierta && n.k===k && cts(n.monto)>0;
+    /* Misma definición que la app principal: sin cubrir y de esta ventana. No se
+       filtra por monto — el recorte a cero se hace donde corresponde, al usarlo. */
+    return n && !n.cubierta && n.k===k;
   });
 }
 function notasTjC(notas,k,nombre){
@@ -2213,7 +2244,7 @@ function vRubros(){
   var arr=rs.filter(function(r){ return sel.indexOf(r.cat)>=0; }).sort(ord);
   var rest=rs.filter(function(r){ return sel.indexOf(r.cat)<0; }).sort(ord);
   var ing=ingresosC(S,k), gas=gastosC(S,k), nMov=movsDe(S,k).length;
-  var cmp=compromisoC(S,k,hoyISO());
+  var cmp=compromisoC(S,k,hoyISO(),NOTAS);
   /* Los dos números grandes, lado a lado: el real a la izquierda y la proyección
      a la derecha. La proyección lleva color —verde si sobra, rojo si falta—
      porque es la única cifra de la app que responde "¿me alcanza?". El saldo
@@ -2243,7 +2274,7 @@ function vRubros(){
   return h;
 }
 function hojaProyeccion(k){
-  var c=compromisoC(S,k,hoyISO()), t=cotejoC(S,k), ah=ahorroProyC(S,k,hoyISO());
+  var c=compromisoC(S,k,hoyISO(),NOTAS), t=cotejoC(S,k,hoyISO()), ah=ahorroProyC(S,k,hoyISO(),NOTAS);
   var h='<h3>Proyección &middot; '+esc(nomVentana(k))+'</h3>'+
     '<div class="hsub">fuera del saldo real &middot; las mismas cifras de la app principal</div>'+
     '<div class="cot"><div class="cot-t">Saldo libre proyectado</div>'+
@@ -2631,7 +2662,7 @@ function vCierres(){
   var h='<div class="caja"><div class="caja-t"><h2>Cierre por corte</h2><span class="sp"></span>'+
     '<button class="lnk" data-acc="ex" data-ex="cierre">cómo se calcula</button></div>';
   vs.forEach(function(k){
-    var c=cotejoC(S,k), so=sobroC(S,k);
+    var c=cotejoC(S,k,hoyISO()), so=sobroC(S,k);
     var pr=c.egr.plan, ga=c.egr.real, df=c.egr.dif, ab=VISTA.cierre===k;
     h+='<button class="cie'+(ab?" on":"")+'" data-acc="cierre" data-v="'+esc(k)+'">'+
       '<span class="c1"><b>'+esc(nomVentana(k))+'</b>'+
@@ -2650,7 +2681,7 @@ function vCierres(){
 /* La misma tabla que la app madre muestra en «Presupuesto contra real»,
    con sus mismas tres filas y sus mismos tres números. */
 function hojaCotejo(k){
-  var c=cotejoC(S,k);
+  var c=cotejoC(S,k,hoyISO());
   function fila(t,o,expl){
     return '<div class="cot"><div class="cot-t">'+t+'</div>'+
       '<div class="cot-n"><span>presupuesto</span><b class="num">'+fmtC(o.plan)+'</b></div>'+
